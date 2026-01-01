@@ -1,5 +1,6 @@
+import { UpdateAccountUseCase } from './../application/use-cases/update_account.usecase';
 import { SearchAccountUseCase } from './../application/use-cases/search_account.usecase';
-import { Body, Controller, Get, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Query } from "@nestjs/common";
 import { CreateAccountUseCase } from "../application/use-cases/create_account.usecase";
 import { CreateAccountDto } from "./dtos/create-account.dto";
 import { Account } from "../domain/entities/account.entity";
@@ -12,6 +13,7 @@ export class AccountController{
         private readonly createAccountUseCase: CreateAccountUseCase,
         private readonly findAccountUseCase: FindAccountsUseCase,
         private readonly searchAccountUseCase: SearchAccountUseCase,
+        private readonly updateAccountUseCase: UpdateAccountUseCase,
     ){}
 
     @Post()
@@ -27,5 +29,11 @@ export class AccountController{
     @Get('search')
     searchAccount(@Query('term') term:string){
         return this.searchAccountUseCase.execute(term);
-    } 
+    }
+
+    @Patch(':id')
+    updateAccount(@Param('id', ParseIntPipe) id: number, @Body() account: CreateAccountDto):Promise<Account>{
+        console.log('CONTROLLER : ', id, ' : ', account)
+        return this.updateAccountUseCase.execute(id, account);
+    }
 }

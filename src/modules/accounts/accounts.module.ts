@@ -6,6 +6,7 @@ import { AccountController } from "./interface/accounts.controller";
 import { PrismaModule } from "src/prisma/prisma.module";
 import { FindAccountsUseCase } from "./application/use-cases/find_accounts.usecase";
 import { SearchAccountUseCase } from "./application/use-cases/search_account.usecase";
+import { UpdateAccountUseCase } from "./application/use-cases/update_account.usecase";
 
 @Module({
     imports: [PrismaModule],
@@ -14,6 +15,7 @@ import { SearchAccountUseCase } from "./application/use-cases/search_account.use
         CreateAccountUseCase,
         FindAccountsUseCase,
         SearchAccountUseCase,
+        UpdateAccountUseCase,
         {
             provide: ACCOUNTS_REPOSITORY,
             useClass: DbAccountRepository
