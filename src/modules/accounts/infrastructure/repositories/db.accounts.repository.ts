@@ -9,20 +9,25 @@ export class DbAccountRepository implements AccountRepository{
     constructor(private readonly prisma: PrismaService) {}
    
     async create(account: Account): Promise<Account> {
-    const row = await this.prisma.account.create({
-      data: {
-        code: account.code,
-        name: account.name,
-        class: account.account_class,
-      },
-    });
+      const row = await this.prisma.account.create({
+        data: {
+          code: account.code,
+          name: account.name,
+          class: account.account_class,
+        },
+      });
 
-    return new Account(
-      row.code,
-      row.name,
-      row.class,
-      row.id,
-    );
-  }
+      return new Account(
+        row.code,
+        row.name,
+        row.class,
+        row.id,
+      );
+    }
+
+    async findAccounts(): Promise<Account[]>{
+      const accounts = await this.prisma.account.findMany()
+      return accounts.map((account) => new Account(account.code, account.name,account.class, account.id))
+    }
     
 }
