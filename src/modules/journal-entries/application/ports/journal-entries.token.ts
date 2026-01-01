@@ -1,0 +1,1 @@
+export const JOURNAL_ENTRIES = 'JOURNAL_ENTRIES';
