@@ -29,5 +29,34 @@ export class DbAccountRepository implements AccountRepository{
       const accounts = await this.prisma.account.findMany()
       return accounts.map((account) => new Account(account.code, account.name,account.class, account.id))
     }
+
+    async searchAccount(query: string): Promise<Account[]> {
+      const isNumber = !isNaN(Number(query));
+
+      const accounts = await this.prisma.account.findMany({
+        where: {
+          OR: [
+            {
+              code: {
+                contains: query,
+                mode: 'insensitive'
+              }
+            },
+            {
+              name: {
+                contains: query,
+                mode: 'insensitive'
+              }
+            },
+            ...(isNumber ? [
+              {
+                class:Number(query)
+              }
+            ] : [])
+          ]
+        }
+      });
+      return accounts.map((account) => new Account(account.code, account.name, account.class, account.id));
+    }
     
 }

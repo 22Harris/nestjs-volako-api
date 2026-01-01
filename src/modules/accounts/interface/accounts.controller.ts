@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Post } from "@nestjs/common";
+import { SearchAccountUseCase } from './../application/use-cases/search_account.usecase';
+import { Body, Controller, Get, Post, Query } from "@nestjs/common";
 import { CreateAccountUseCase } from "../application/use-cases/create_account.usecase";
 import { CreateAccountDto } from "./dtos/create-account.dto";
 import { Account } from "../domain/entities/account.entity";
-import { FindAccountsUseCase } from "../application/use-cases/find_accounts.usecases";
+import { FindAccountsUseCase } from "../application/use-cases/find_accounts.usecase";
 
 @Controller('account')
 export class AccountController{
@@ -10,6 +11,7 @@ export class AccountController{
     constructor(
         private readonly createAccountUseCase: CreateAccountUseCase,
         private readonly findAccountUseCase: FindAccountsUseCase,
+        private readonly searchAccountUseCase: SearchAccountUseCase,
     ){}
 
     @Post()
@@ -21,4 +23,9 @@ export class AccountController{
     findAccounts(){
         return this.findAccountUseCase.execute();
     }
+
+    @Get('search')
+    searchAccount(@Query('term') term:string){
+        return this.searchAccountUseCase.execute(term);
+    } 
 }

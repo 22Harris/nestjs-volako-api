@@ -4,7 +4,8 @@ import { CreateAccountUseCase } from "./application/use-cases/create_account.use
 import { DbAccountRepository } from "./infrastructure/repositories/db.accounts.repository";
 import { AccountController } from "./interface/accounts.controller";
 import { PrismaModule } from "src/prisma/prisma.module";
-import { FindAccountsUseCase } from "./application/use-cases/find_accounts.usecases";
+import { FindAccountsUseCase } from "./application/use-cases/find_accounts.usecase";
+import { SearchAccountUseCase } from "./application/use-cases/search_account.usecase";
 
 @Module({
     imports: [PrismaModule],
@@ -12,6 +13,7 @@ import { FindAccountsUseCase } from "./application/use-cases/find_accounts.useca
     providers: [
         CreateAccountUseCase,
         FindAccountsUseCase,
+        SearchAccountUseCase,
         {
             provide: ACCOUNTS_REPOSITORY,
             useClass: DbAccountRepository
