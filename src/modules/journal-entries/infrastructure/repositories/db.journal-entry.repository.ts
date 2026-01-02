@@ -96,4 +96,33 @@ export class DbJournalEntryRepository implements JournalEntryRepository{
             journal.id
         );
     }
+
+    async updateLabelOfJournalEntry(journalId: number, label: string): Promise<JournalEntry> {
+        const journal = await this.prisma.journalEntry.update({
+            where: {
+                id: journalId
+            },
+            data:{
+                label: label
+            },
+            include: {
+                lines: true
+            }
+        });
+
+        return new JournalEntry(
+            journal.date,
+            journal.label,
+            journal.lines.map(
+            (line) =>
+                new JournalLine(
+                line.accountId,
+                line.debit,
+                line.credit,
+                line.id,
+                ),
+            ),
+            journal.id,
+        )
+    }
 }
