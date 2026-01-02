@@ -5,6 +5,7 @@ import { CreateJournalEntryUseCase } from "./application/use-cases/create-journa
 import { JOURNAL_ENTRIES } from "./application/ports/journal-entries.token";
 import { DbJournalEntryRepository } from "./infrastructure/repositories/db.journal-entry.repository";
 import { FindJournalEntriesUseCase } from "./application/use-cases/find-journal-entries.usecase";
+import { GetJournalEntryByIdUseCase } from "./application/use-cases/get-journal-entry-by-id.usecase";
 
 @Module({
     imports: [PrismaModule],
@@ -12,6 +13,7 @@ import { FindJournalEntriesUseCase } from "./application/use-cases/find-journal-
     providers: [
         CreateJournalEntryUseCase,
         FindJournalEntriesUseCase,
+        GetJournalEntryByIdUseCase,
         {
             provide: JOURNAL_ENTRIES,
             useClass: DbJournalEntryRepository

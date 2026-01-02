@@ -66,4 +66,34 @@ export class DbJournalEntryRepository implements JournalEntryRepository{
             )
         );
     }
+
+    async getJournalById(journalId: number): Promise<JournalEntry | null> {
+        const journal = await this.prisma.journalEntry.findUnique({
+             where: {
+                id: journalId
+            },
+            include: {
+                lines: true
+            },
+           
+        });
+
+        if(!journal){
+            return null;
+        }
+
+        return new JournalEntry(
+            journal.date,
+            journal.label,
+            journal.lines.map((line) => 
+                new JournalLine(
+                    line.accountId,
+                    line.debit,
+                    line.credit,
+                    line.id
+                )
+            ),
+            journal.id
+        );
+    }
 }
