@@ -42,4 +42,28 @@ export class DbJournalEntryRepository implements JournalEntryRepository{
             journalEntry.id,
         );
     }
+
+    async findJournalEntries(): Promise<JournalEntry[]> {
+        const journalEntries = await this.prisma.journalEntry.findMany({
+            include: {
+                lines: true
+            }
+        });
+
+        return journalEntries.map((journal) => 
+            new JournalEntry(
+                journal.date,
+                journal.label,
+                journal.lines.map((line) => 
+                    new JournalLine(
+                        line.accountId,
+                        line.debit,
+                        line.credit,
+                        line.id
+                    )
+                ),
+                journal.id
+            )
+        );
+    }
 }
