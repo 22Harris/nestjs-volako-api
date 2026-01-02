@@ -76,4 +76,24 @@ export class DbAccountRepository implements AccountRepository{
 
       return new Account(accountFound.code, accountFound.name, accountFound.class, accountFound.id);
     }
+
+    async getAccount(accountId: number): Promise<Account | null> {
+      const account = await this.prisma.account.findUnique({
+        where: {
+          id: accountId,
+        },
+      });
+
+       if (!account) {
+          return null;
+        }
+
+        return new Account(
+          account.code,
+          account.name,
+          account.class,
+          account.id,
+        );
+
+    }
 }

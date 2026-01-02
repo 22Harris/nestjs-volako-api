@@ -1,4 +1,4 @@
-import { Account } from "../../domain/entities/account.entity";
+import { Account } from './../../domain/entities/account.entity';
 import { CreateAccountDto } from "../../interface/dtos/create-account.dto";
 
 export interface AccountRepository{
@@ -6,4 +6,5 @@ export interface AccountRepository{
     findAccounts():Promise<Account[]>
     searchAccount(query: string):Promise<Account[]>
     updateAccount(accountId: number, account: CreateAccountDto): Promise<Account>
+    getAccount(accountId: number):Promise<Account | null>
 }
