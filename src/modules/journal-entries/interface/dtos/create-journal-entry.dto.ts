@@ -5,7 +5,6 @@ import {
   IsString,
   ValidateNested,
   ArrayMinSize,
-  IsDate,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { CreateJournalLineDto } from './create-journal-line.dto';
