@@ -1,4 +1,4 @@
-import { IsDateString } from 'class-validator/types/decorator/string/IsDateString';
+import { IsDateString } from 'class-validator';
 import { OperationType } from '../types/operation.type';
 import { IsString } from 'class-validator';
 
@@ -11,9 +11,5 @@ export class CreateOperationDto {
   @IsString()
   label: string;
 
-  lines: {
-    accountId: number;
-    debit: number;
-    credit: number;
-  }[];
+  amount: number;
 }

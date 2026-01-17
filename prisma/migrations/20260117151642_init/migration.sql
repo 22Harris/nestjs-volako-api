@@ -39,6 +39,9 @@ CREATE TABLE "JournalLine" (
     CONSTRAINT "JournalLine_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateIndex
+CREATE UNIQUE INDEX "Account_code_key" ON "Account"("code");
+
 -- AddForeignKey
 ALTER TABLE "JournalEntry" ADD CONSTRAINT "JournalEntry_operationId_fkey" FOREIGN KEY ("operationId") REFERENCES "Operation"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 

@@ -4,9 +4,11 @@ import { OperationsController } from './interface/operations.controller';
 import { DbOperationsRepository } from './infrastructure/repositories/db.operations.repository';
 import { OPERATIONS_REPOSITORY } from './application/ports/operation.repository.token';
 import { CreateOperationUseCase } from './application/use-cases/create_operation.usecase';
+import { JournalEntryModule } from '../journal-entries/journal-entries.module';
+import { AccountModule } from '../accounts/accounts.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, JournalEntryModule, AccountModule],
   controllers: [OperationsController],
   providers: [
     CreateOperationUseCase,

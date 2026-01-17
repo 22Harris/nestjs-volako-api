@@ -23,7 +23,7 @@ model Operation {
 
 model Account {
   id     Int    @id @default(autoincrement())
-  code   String
+  code   String @unique
   name   String
   class  Int
 
