@@ -1,8 +1,9 @@
-import { IsDateString } from 'class-validator';
+import { IsDateString, IsEnum, IsNumber, Min } from 'class-validator';
 import { OperationType } from '../types/operation.type';
 import { IsString } from 'class-validator';
 
 export class CreateOperationDto {
+  @IsEnum(OperationType)
   type: OperationType;
 
   @IsDateString()
@@ -11,5 +12,7 @@ export class CreateOperationDto {
   @IsString()
   label: string;
 
+  @IsNumber()
+  @Min(0.01)
   amount: number;
 }
