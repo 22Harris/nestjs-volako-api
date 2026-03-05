@@ -4,4 +4,5 @@ export class OperationDto {
   type: OperationType;
   date: string;
   label: string;
+  amount?: number;
 }

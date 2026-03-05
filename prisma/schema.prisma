@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -17,6 +11,7 @@ model Operation {
   type      String
   date      DateTime
   label     String
+  amount    Int           @default(0)
 
   entries   JournalEntry[]
 }
@@ -31,23 +26,71 @@ model Account {
 }
 
 model JournalEntry {
-  id    Int      @id @default(autoincrement())
-  date  DateTime
-  label String
+  id          Int        @id @default(autoincrement())
+  date        DateTime
+  label       String
   operationId Int?
-  operation   Operation?    @relation(fields: [operationId], references: [id])
+  operation   Operation? @relation(fields: [operationId], references: [id])
 
   lines JournalLine[]
 }
 
 model JournalLine {
-  id         Int    @id @default(autoincrement())
-  debit      Int
-  credit     Int
+  id        Int    @id @default(autoincrement())
+  debit     Int
+  credit    Int
+  accountId Int
+  entryId   Int
 
-  accountId  Int
-  entryId    Int
+  account Account      @relation(fields: [accountId], references: [id])
+  entry   JournalEntry @relation(fields: [entryId], references: [id])
+}
 
-  account    Account      @relation(fields: [accountId], references: [id])
-  entry      JournalEntry @relation(fields: [entryId], references: [id])
+model User {
+  id       Int    @id @default(autoincrement())
+  name     String
+  email    String @unique
+  password String
+}
+
+model Evenement {
+  id           Int      @id @default(autoincrement())
+  titre        String
+  categorie    String
+  montant      Int
+  dateEcheance DateTime
+  recurrence   String
+  statut       String
+  notes        String?
+}
+
+model Objectif {
+  id            Int      @id @default(autoincrement())
+  nom           String
+  description   String?
+  categorie     String
+  montantCible  Int
+  montantActuel Int      @default(0)
+  dateDebut     DateTime
+  dateEcheance  DateTime
+  couleur       String
+  icone         String
+  statut        String
+}
+
+model Budget {
+  id       Int           @id @default(autoincrement())
+  exercice Int
+  mois     Int
+  lignes   BudgetLigne[]
+}
+
+model BudgetLigne {
+  id           Int    @id @default(autoincrement())
+  categorie    String
+  libelle      String
+  montantPrevu Int
+  type         String
+  budgetId     Int
+  budget       Budget @relation(fields: [budgetId], references: [id])
 }

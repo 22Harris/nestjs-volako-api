@@ -8,11 +8,20 @@ import { JournalLine } from '../../domain/entities/journal-line.entity';
 export class DbJournalEntryRepository implements JournalEntryRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createJournalEntry(
-    journal: JournalEntry,
-    operationId?: number,
-  ): Promise<JournalEntry> {
-    const journalEntry = await this.prisma.journalEntry.create({
+  private toEntity(journal: any): JournalEntry {
+    return new JournalEntry(
+      journal.date,
+      journal.label,
+      journal.lines.map(
+        (line: any) => new JournalLine(line.accountId, line.debit, line.credit, line.id),
+      ),
+      journal.id,
+      journal.operationId ?? undefined,
+    );
+  }
+
+  async createJournalEntry(journal: JournalEntry, operationId?: number): Promise<JournalEntry> {
+    const row = await this.prisma.journalEntry.create({
       data: {
         date: journal.date,
         label: journal.label,
@@ -25,92 +34,40 @@ export class DbJournalEntryRepository implements JournalEntryRepository {
           })),
         },
       },
-      include: {
-        lines: true,
-      },
+      include: { lines: true },
     });
-
-    return new JournalEntry(
-      journalEntry.date,
-      journalEntry.label,
-      journalEntry.lines.map(
-        (line) =>
-          new JournalLine(line.accountId, line.debit, line.credit, line.id),
-      ),
-      journalEntry.id,
-    );
+    return this.toEntity(row);
   }
 
-  async findJournalEntries(): Promise<JournalEntry[]> {
-    const journalEntries = await this.prisma.journalEntry.findMany({
-      include: {
-        lines: true,
-      },
+  async findJournalEntries(operationId?: number): Promise<JournalEntry[]> {
+    const rows = await this.prisma.journalEntry.findMany({
+      where: operationId !== undefined ? { operationId } : undefined,
+      include: { lines: true },
+      orderBy: { date: 'desc' },
     });
-
-    return journalEntries.map(
-      (journal) =>
-        new JournalEntry(
-          journal.date,
-          journal.label,
-          journal.lines.map(
-            (line) =>
-              new JournalLine(line.accountId, line.debit, line.credit, line.id),
-          ),
-          journal.id,
-        ),
-    );
+    return rows.map((r) => this.toEntity(r));
   }
 
   async getJournalById(journalId: number): Promise<JournalEntry | null> {
-    const journal = await this.prisma.journalEntry.findUnique({
-      where: {
-        id: journalId,
-      },
-      include: {
-        lines: true,
-      },
+    const row = await this.prisma.journalEntry.findUnique({
+      where: { id: journalId },
+      include: { lines: true },
     });
-
-    if (!journal) {
-      return null;
-    }
-
-    return new JournalEntry(
-      journal.date,
-      journal.label,
-      journal.lines.map(
-        (line) =>
-          new JournalLine(line.accountId, line.debit, line.credit, line.id),
-      ),
-      journal.id,
-    );
+    if (!row) return null;
+    return this.toEntity(row);
   }
 
-  async updateLabelOfJournalEntry(
-    journalId: number,
-    label: string,
-  ): Promise<JournalEntry> {
-    const journal = await this.prisma.journalEntry.update({
-      where: {
-        id: journalId,
-      },
-      data: {
-        label: label,
-      },
-      include: {
-        lines: true,
-      },
+  async updateLabelOfJournalEntry(journalId: number, label: string): Promise<JournalEntry> {
+    const row = await this.prisma.journalEntry.update({
+      where: { id: journalId },
+      data: { label },
+      include: { lines: true },
     });
+    return this.toEntity(row);
+  }
 
-    return new JournalEntry(
-      journal.date,
-      journal.label,
-      journal.lines.map(
-        (line) =>
-          new JournalLine(line.accountId, line.debit, line.credit, line.id),
-      ),
-      journal.id,
-    );
+  async deleteJournalEntry(journalId: number): Promise<void> {
+    await this.prisma.journalLine.deleteMany({ where: { entryId: journalId } });
+    await this.prisma.journalEntry.delete({ where: { id: journalId } });
   }
 }

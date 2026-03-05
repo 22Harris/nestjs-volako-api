@@ -4,14 +4,13 @@ import type { JournalEntryRepository } from "../ports/journal-entries.repository
 import { JournalEntry } from "../../domain/entities/journal-entries.entity";
 
 @Injectable()
-export class FindJournalEntriesUseCase{
+export class FindJournalEntriesUseCase {
+  constructor(
+    @Inject(JOURNAL_ENTRIES)
+    private readonly journalEntryRepository: JournalEntryRepository,
+  ) {}
 
-    constructor(
-        @Inject(JOURNAL_ENTRIES)
-        private readonly journalEntryRepository: JournalEntryRepository
-    ){}
-
-    execute():Promise<JournalEntry[]>{
-        return this.journalEntryRepository.findJournalEntries();
-    }
+  execute(operationId?: number): Promise<JournalEntry[]> {
+    return this.journalEntryRepository.findJournalEntries(operationId);
+  }
 }

@@ -1,7 +1,9 @@
 import {
   IsArray,
   IsDateString,
+  IsInt,
   IsNotEmpty,
+  IsOptional,
   IsString,
   ValidateNested,
   ArrayMinSize,
@@ -16,6 +18,10 @@ export class CreateJournalEntryDto {
   @IsString()
   @IsNotEmpty()
   label: string;
+
+  @IsOptional()
+  @IsInt()
+  operationId?: number;
 
   @IsArray()
   @ArrayMinSize(2)

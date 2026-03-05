@@ -7,6 +7,7 @@ import { DbJournalEntryRepository } from './infrastructure/repositories/db.journ
 import { FindJournalEntriesUseCase } from './application/use-cases/find-journal-entries.usecase';
 import { GetJournalEntryByIdUseCase } from './application/use-cases/get-journal-entry-by-id.usecase';
 import { UpdateLabelOfJournalEntryUseCase } from './application/use-cases/update-label-of-journal-entry.usecase';
+import { DeleteJournalEntryUseCase } from './application/use-cases/delete-journal-entry.usecase';
 
 @Module({
   imports: [PrismaModule],
@@ -16,6 +17,7 @@ import { UpdateLabelOfJournalEntryUseCase } from './application/use-cases/update
     FindJournalEntriesUseCase,
     GetJournalEntryByIdUseCase,
     UpdateLabelOfJournalEntryUseCase,
+    DeleteJournalEntryUseCase,
     {
       provide: JOURNAL_ENTRIES,
       useClass: DbJournalEntryRepository,

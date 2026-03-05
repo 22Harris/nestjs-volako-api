@@ -11,16 +11,15 @@ export class CreateJournalEntryUseCase {
     private readonly journalEntryRepository: JournalEntryRepository,
   ) {}
 
-  execute(
-    createJournal: CreateJournalEntryDto,
-    operationId?: number,
-  ): Promise<JournalEntry> {
+  execute(createJournal: CreateJournalEntryDto, operationId?: number): Promise<JournalEntry> {
     const journal = new JournalEntry(
       new Date(createJournal.date),
       createJournal.label,
       createJournal.lines,
     );
-
-    return this.journalEntryRepository.createJournalEntry(journal, operationId);
+    return this.journalEntryRepository.createJournalEntry(
+      journal,
+      operationId ?? createJournal.operationId,
+    );
   }
 }

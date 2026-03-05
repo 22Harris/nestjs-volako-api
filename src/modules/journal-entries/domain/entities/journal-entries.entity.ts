@@ -1,12 +1,12 @@
 import { JournalLine } from "./journal-line.entity";
 
-
 export class JournalEntry {
   constructor(
     public readonly date: Date,
     public readonly label: string,
     public readonly lines: JournalLine[],
     public readonly id?: number,
+    public readonly operationId?: number,
   ) {
     this.validate();
   }
@@ -23,11 +23,9 @@ export class JournalEntry {
       if (line.debit > 0 && line.credit > 0) {
         throw new Error('Une ligne ne peut pas avoir débit et crédit');
       }
-
       if (line.debit === 0 && line.credit === 0) {
         throw new Error('Une ligne doit avoir un débit ou un crédit');
       }
-
       totalDebit += line.debit;
       totalCredit += line.credit;
     }

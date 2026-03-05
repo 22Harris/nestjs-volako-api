@@ -8,4 +8,5 @@ export interface AccountRepository {
   updateAccount(accountId: number, account: CreateAccountDto): Promise<Account>;
   getAccount(accountId: number): Promise<Account | null>;
   findByCode(code: string): Promise<Account>;
+  deleteAccount(accountId: number): Promise<void>;
 }

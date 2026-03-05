@@ -29,7 +29,7 @@ export class DbAccountRepository implements AccountRepository {
   }
 
   async searchAccount(query: string): Promise<Account[]> {
-    const isNumber = !isNaN(Number(query));
+    const isNumber = !Number.isNaN(Number(query));
 
     const accounts = await this.prisma.account.findMany({
       where: {
@@ -111,5 +111,9 @@ export class DbAccountRepository implements AccountRepository {
     }
 
     return new Account(row.code, row.name, row.class, row.id);
+  }
+
+  async deleteAccount(accountId: number): Promise<void> {
+    await this.prisma.account.delete({ where: { id: accountId } });
   }
 }
