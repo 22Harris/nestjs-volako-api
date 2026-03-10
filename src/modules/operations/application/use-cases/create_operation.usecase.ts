@@ -25,6 +25,7 @@ export class CreateOperationUseCase {
       type: operationMaster.type,
       date: operationMaster.date,
       label: operationMaster.label,
+      amount: operationMaster.amount,
     };
     const operationCreated = await this.operationRepository.create(operation);
 

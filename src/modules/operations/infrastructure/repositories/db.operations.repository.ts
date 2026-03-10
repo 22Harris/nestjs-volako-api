@@ -10,7 +10,18 @@ export class DbOperationsRepository implements OperationRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   private toEntity(row: any): Operation {
-    return new Operation(row.type as OperationType, row.date, row.label, row.id, row.amount);
+    const entries = row.entries?.map((e: any) => ({
+      id: e.id,
+      date: e.date,
+      label: e.label,
+      lines: (e.lines ?? []).map((l: any) => ({
+        id: l.id,
+        accountId: l.accountId,
+        debit: l.debit,
+        credit: l.credit,
+      })),
+    }));
+    return new Operation(row.type as OperationType, row.date, row.label, row.id, row.amount, entries);
   }
 
   async create(operation: OperationDto): Promise<Operation> {
@@ -42,7 +53,10 @@ export class DbOperationsRepository implements OperationRepository {
   }
 
   async findById(id: number): Promise<Operation | null> {
-    const row = await this.prisma.operation.findUnique({ where: { id } });
+    const row = await this.prisma.operation.findUnique({
+      where: { id },
+      include: { entries: { include: { lines: true } } },
+    });
     return row ? this.toEntity(row) : null;
   }
 

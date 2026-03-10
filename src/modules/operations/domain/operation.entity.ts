@@ -7,6 +7,7 @@ export class Operation {
     public readonly label: string,
     public readonly id?: number,
     public readonly amount?: number,
+    public readonly entries?: any[],
   ) {
     this.validate();
   }
