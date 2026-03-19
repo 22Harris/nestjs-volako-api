@@ -8,9 +8,13 @@ import { FindJournalEntriesUseCase } from './application/use-cases/find-journal-
 import { GetJournalEntryByIdUseCase } from './application/use-cases/get-journal-entry-by-id.usecase';
 import { UpdateLabelOfJournalEntryUseCase } from './application/use-cases/update-label-of-journal-entry.usecase';
 import { DeleteJournalEntryUseCase } from './application/use-cases/delete-journal-entry.usecase';
+import { LettrerLignesUseCase } from './application/use-cases/lettrer-lignes.usecase';
+import { DelettrerLignesUseCase } from './application/use-cases/delettrer-lignes.usecase';
+import { AuthModule } from '../auth/auth.module';
+import { PeriodeLocksModule } from '../periode-locks/periode-locks.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, AuthModule, PeriodeLocksModule],
   controllers: [JournalEntryController],
   providers: [
     CreateJournalEntryUseCase,
@@ -18,6 +22,8 @@ import { DeleteJournalEntryUseCase } from './application/use-cases/delete-journa
     GetJournalEntryByIdUseCase,
     UpdateLabelOfJournalEntryUseCase,
     DeleteJournalEntryUseCase,
+    LettrerLignesUseCase,
+    DelettrerLignesUseCase,
     {
       provide: JOURNAL_ENTRIES,
       useClass: DbJournalEntryRepository,

@@ -11,16 +11,16 @@ export class DbEvenementRepository implements EvenementRepository {
     return new Evenement(r.titre, r.categorie, r.montant, r.dateEcheance, r.recurrence, r.statut, r.id, r.notes ?? undefined);
   }
 
-  findAll(): Promise<Evenement[]> {
-    return this.prisma.evenement.findMany({ orderBy: { dateEcheance: 'asc' } }).then(rs => rs.map(r => this.toEntity(r)));
+  findAll(userId: number): Promise<Evenement[]> {
+    return this.prisma.evenement.findMany({ where: { userId }, orderBy: { dateEcheance: 'asc' } }).then(rs => rs.map(r => this.toEntity(r)));
   }
 
-  async findById(id: number): Promise<Evenement | null> {
-    const r = await this.prisma.evenement.findUnique({ where: { id } });
+  async findById(id: number, userId: number): Promise<Evenement | null> {
+    const r = await this.prisma.evenement.findFirst({ where: { id, userId } });
     return r ? this.toEntity(r) : null;
   }
 
-  async create(data: any): Promise<Evenement> {
+  async create(data: any, userId: number): Promise<Evenement> {
     const r = await this.prisma.evenement.create({
       data: {
         titre: data.titre,
@@ -30,14 +30,15 @@ export class DbEvenementRepository implements EvenementRepository {
         recurrence: data.recurrence,
         statut: data.statut ?? 'EN_ATTENTE',
         notes: data.notes ?? null,
+        userId,
       },
     });
     return this.toEntity(r);
   }
 
-  async update(id: number, data: any): Promise<Evenement> {
+  async update(id: number, data: any, userId: number): Promise<Evenement> {
     const r = await this.prisma.evenement.update({
-      where: { id },
+      where: { id, userId },
       data: {
         ...(data.titre        && { titre: data.titre }),
         ...(data.categorie    && { categorie: data.categorie }),
@@ -51,12 +52,12 @@ export class DbEvenementRepository implements EvenementRepository {
     return this.toEntity(r);
   }
 
-  async delete(id: number): Promise<void> {
-    await this.prisma.evenement.delete({ where: { id } });
+  async delete(id: number, userId: number): Promise<void> {
+    await this.prisma.evenement.delete({ where: { id, userId } });
   }
 
-  async marquerPaye(id: number): Promise<{ updated: Evenement; next: Evenement | null }> {
-    const updated = await this.update(id, { statut: 'PAYE' });
+  async marquerPaye(id: number, userId: number): Promise<{ updated: Evenement; next: Evenement | null }> {
+    const updated = await this.update(id, { statut: 'PAYE' }, userId);
     let next: Evenement | null = null;
 
     if (updated.recurrence !== 'UNIQUE') {
@@ -69,7 +70,7 @@ export class DbEvenementRepository implements EvenementRepository {
         recurrence: updated.recurrence,
         statut: 'EN_ATTENTE',
         notes: updated.notes,
-      });
+      }, userId);
     }
 
     return { updated, next };

@@ -6,5 +6,5 @@ import { CreateEvenementDto } from '../../interface/dtos/create-evenement.dto';
 @Injectable()
 export class CreateEvenementUseCase {
   constructor(@Inject(EVENEMENT_REPOSITORY) private readonly repo: EvenementRepository) {}
-  execute(dto: CreateEvenementDto): Promise<Evenement> { return this.repo.create(dto as any); }
+  execute(dto: CreateEvenementDto, userId: number): Promise<Evenement> { return this.repo.create(dto as any, userId); }
 }

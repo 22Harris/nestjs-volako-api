@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from 'src/prisma/prisma.module';
+import { AuthModule } from '../auth/auth.module';
 import { ObjectifsController } from './interface/objectifs.controller';
 import { OBJECTIF_REPOSITORY } from './application/ports/objectif.repository.token';
 import { DbObjectifRepository } from './infrastructure/repositories/db.objectif.repository';
@@ -11,7 +12,7 @@ import { DeleteObjectifUseCase } from './application/use-cases/delete-objectif.u
 import { VersementUseCase } from './application/use-cases/versement.usecase';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, AuthModule],
   controllers: [ObjectifsController],
   providers: [
     FindObjectifsUseCase, GetObjectifUseCase, CreateObjectifUseCase,

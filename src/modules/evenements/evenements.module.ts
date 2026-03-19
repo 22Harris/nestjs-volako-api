@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from 'src/prisma/prisma.module';
+import { AuthModule } from '../auth/auth.module';
 import { EvenementsController } from './interface/evenements.controller';
 import { EVENEMENT_REPOSITORY } from './application/ports/evenement.repository.token';
 import { DbEvenementRepository } from './infrastructure/repositories/db.evenement.repository';
@@ -11,7 +12,7 @@ import { DeleteEvenementUseCase } from './application/use-cases/delete-evenement
 import { MarquerPayeUseCase } from './application/use-cases/marquer-paye.usecase';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, AuthModule],
   controllers: [EvenementsController],
   providers: [
     FindEvenementsUseCase, GetEvenementUseCase, CreateEvenementUseCase,

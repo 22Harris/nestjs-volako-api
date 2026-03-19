@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AccountModule } from './modules/accounts/accounts.module';
@@ -8,9 +10,18 @@ import { AuthModule } from './modules/auth/auth.module';
 import { EvenementsModule } from './modules/evenements/evenements.module';
 import { ObjectifsModule } from './modules/objectifs/objectifs.module';
 import { BudgetModule } from './modules/budget/budget.module';
+import { TiersModule } from './modules/tiers/tiers.module';
+import { FacturesModule } from './modules/factures/factures.module';
+import { JournalsModule } from './modules/journals/journals.module';
+import { PeriodeLocksModule } from './modules/periode-locks/periode-locks.module';
+import { FiscalYearsModule } from './modules/fiscal-years/fiscal-years.module';
+import { RapportsModule } from './modules/rapports/rapports.module';
+import { TvaModule } from './modules/tva/tva.module';
+import { RapprochementModule } from './modules/rapprochement/rapprochement.module';
 
 @Module({
   imports: [
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 300 }]),
     AccountModule,
     JournalEntryModule,
     OperationsModule,
@@ -18,8 +29,19 @@ import { BudgetModule } from './modules/budget/budget.module';
     EvenementsModule,
     ObjectifsModule,
     BudgetModule,
+    TiersModule,
+    FacturesModule,
+    JournalsModule,
+    PeriodeLocksModule,
+    FiscalYearsModule,
+    RapportsModule,
+    TvaModule,
+    RapprochementModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule {}

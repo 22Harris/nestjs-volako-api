@@ -10,9 +10,10 @@ import { UpdateOperationUseCase } from './application/use-cases/update_operation
 import { DeleteOperationUseCase } from './application/use-cases/delete_operation.usecase';
 import { JournalEntryModule } from '../journal-entries/journal-entries.module';
 import { AccountModule } from '../accounts/accounts.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [PrismaModule, JournalEntryModule, AccountModule],
+  imports: [PrismaModule, JournalEntryModule, AccountModule, AuthModule],
   controllers: [OperationsController],
   providers: [
     CreateOperationUseCase,

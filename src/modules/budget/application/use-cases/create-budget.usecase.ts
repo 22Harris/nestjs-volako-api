@@ -5,5 +5,5 @@ import { Budget } from '../../domain/entities/budget.entity';
 @Injectable()
 export class CreateBudgetUseCase {
   constructor(@Inject(BUDGET_REPOSITORY) private readonly repo: BudgetRepository) {}
-  execute(exercice: number, mois: number): Promise<Budget> { return this.repo.create(exercice, mois); }
+  execute(exercice: number, mois: number, userId: number): Promise<Budget> { return this.repo.create(exercice, mois, userId); }
 }

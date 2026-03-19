@@ -9,9 +9,9 @@ export interface OperationFilter {
 }
 
 export interface OperationRepository {
-  create(operation: OperationDto): Promise<Operation>;
-  findAll(filter?: OperationFilter): Promise<Operation[]>;
-  findById(id: number): Promise<Operation | null>;
-  update(id: number, data: Partial<OperationDto>): Promise<Operation>;
-  delete(id: number): Promise<void>;
+  create(operation: OperationDto, userId: number): Promise<Operation>;
+  findAll(userId: number, filter?: OperationFilter): Promise<Operation[]>;
+  findById(id: number, userId: number): Promise<Operation | null>;
+  update(id: number, data: Partial<OperationDto>, userId: number): Promise<Operation>;
+  delete(id: number, userId: number): Promise<void>;
 }

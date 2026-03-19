@@ -20,18 +20,19 @@ export class CreateOperationUseCase {
     private readonly accountRepository: AccountRepository,
   ) {}
 
-  async execute(operationMaster: CreateOperationDto): Promise<Operation> {
+  async execute(operationMaster: CreateOperationDto, userId: number): Promise<Operation> {
     const operation: OperationDto = {
       type: operationMaster.type,
       date: operationMaster.date,
       label: operationMaster.label,
       amount: operationMaster.amount,
     };
-    const operationCreated = await this.operationRepository.create(operation);
+    const operationCreated = await this.operationRepository.create(operation, userId);
 
     const journalLines = await JournalLineFactory.generateJournalLines(
       operationMaster,
       this.accountRepository,
+      userId,
     );
 
     const journalEntry: CreateJournalEntryDto = {
@@ -40,7 +41,7 @@ export class CreateOperationUseCase {
       lines: journalLines,
     };
 
-    await this.createJournalEntryUseCase.execute(journalEntry);
+    await this.createJournalEntryUseCase.execute(journalEntry, operationCreated.id, userId);
 
     return operationCreated;
   }

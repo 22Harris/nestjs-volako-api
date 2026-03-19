@@ -12,17 +12,24 @@ model Operation {
   date      DateTime
   label     String
   amount    Int           @default(0)
-
+  userId    Int           @default(1)
+  user      User          @relation(fields: [userId], references: [id])
   entries   JournalEntry[]
 }
 
 model Account {
-  id     Int    @id @default(autoincrement())
-  code   String @unique
-  name   String
-  class  Int
+  id       Int     @id @default(autoincrement())
+  code     String
+  name     String
+  class    Int
+  isSystem Boolean @default(false)
+  userId   Int     @default(1)
+  user     User    @relation(fields: [userId], references: [id])
 
   journalLines JournalLine[]
+  tiers        Tiers[]
+
+  @@unique([userId, code])
 }
 
 model JournalEntry {
@@ -30,20 +37,37 @@ model JournalEntry {
   date        DateTime
   label       String
   operationId Int?
+  pieceNumber String?
+  journalId   Int?
+  userId      Int        @default(1)
+  user        User       @relation(fields: [userId], references: [id])
   operation   Operation? @relation(fields: [operationId], references: [id])
+  journal     Journal?   @relation(fields: [journalId], references: [id])
 
   lines JournalLine[]
 }
 
 model JournalLine {
-  id        Int    @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   debit     Int
   credit    Int
   accountId Int
   entryId   Int
+  lettre    String?  // lettrage comptable (A, B, C, AA…)
+  codeTva   CodeTva? // code TVA optionnel par ligne
 
-  account Account      @relation(fields: [accountId], references: [id])
-  entry   JournalEntry @relation(fields: [entryId], references: [id])
+  account      Account      @relation(fields: [accountId], references: [id])
+  entry        JournalEntry @relation(fields: [entryId], references: [id])
+  lignesReleve LigneReleve[]
+}
+
+enum CodeTva {
+  NORMAL_20       // Taux normal 20 %
+  INTERMEDIAIRE_10 // Taux intermédiaire 10 %
+  REDUIT_5_5      // Taux réduit 5,5 %
+  PARTICULIER_2_1 // Taux particulier 2,1 %
+  EXONERE         // Exonéré de TVA
+  HORS_CHAMP      // Hors champ TVA
 }
 
 model User {
@@ -51,6 +75,83 @@ model User {
   name     String
   email    String @unique
   password String
+
+  operations     Operation[]
+  accounts       Account[]
+  journalEntries JournalEntry[]
+  evenements     Evenement[]
+  objectifs      Objectif[]
+  budgets        Budget[]
+  refreshTokens  RefreshToken[]
+  tiers          Tiers[]
+  factures       Facture[]
+  paiements      Paiement[]
+  journals       Journal[]
+  periodeLocks   PeriodeLock[]
+  fiscalYears    FiscalYear[]
+  relevesImport  ReleveImport[]
+}
+
+model Tiers {
+  id        Int       @id @default(autoincrement())
+  nom       String
+  type      String    // CLIENT | FOURNISSEUR
+  siret     String?
+  email     String?
+  telephone String?
+  adresse   String?
+  accountId Int?
+  userId    Int       @default(1)
+  user      User      @relation(fields: [userId], references: [id])
+  account   Account?  @relation(fields: [accountId], references: [id])
+  factures  Facture[]
+}
+
+model Facture {
+  id             Int        @id @default(autoincrement())
+  numero         String
+  date           DateTime
+  dateEcheance   DateTime?
+  montant        Int        // centimes
+  statut         String     // EN_ATTENTE | PARTIELLEMENT_PAYEE | PAYEE | ANNULEE
+  notes          String?
+  tiersId        Int
+  userId         Int        @default(1)
+  tiers          Tiers      @relation(fields: [tiersId], references: [id])
+  user           User       @relation(fields: [userId], references: [id])
+  paiements      Paiement[]
+}
+
+model Paiement {
+  id         Int      @id @default(autoincrement())
+  date       DateTime
+  montant    Int      // centimes
+  mode       String   // VIREMENT | CHEQUE | ESPECES | CARTE | PRELEVEMENT
+  reference  String?
+  factureId  Int
+  userId     Int      @default(1)
+  facture    Facture  @relation(fields: [factureId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  action    String
+  entity    String?
+  entityId  Int?
+  details   String?
+  ip        String?
+  createdAt DateTime @default(now())
 }
 
 model Evenement {
@@ -62,6 +163,8 @@ model Evenement {
   recurrence   String
   statut       String
   notes        String?
+  userId       Int      @default(1)
+  user         User     @relation(fields: [userId], references: [id])
 }
 
 model Objectif {
@@ -76,12 +179,16 @@ model Objectif {
   couleur       String
   icone         String
   statut        String
+  userId        Int      @default(1)
+  user          User     @relation(fields: [userId], references: [id])
 }
 
 model Budget {
   id       Int           @id @default(autoincrement())
   exercice Int
   mois     Int
+  userId   Int           @default(1)
+  user     User          @relation(fields: [userId], references: [id])
   lignes   BudgetLigne[]
 }
 
@@ -93,4 +200,77 @@ model BudgetLigne {
   type         String
   budgetId     Int
   budget       Budget @relation(fields: [budgetId], references: [id])
+}
+
+enum JournalType {
+  ACHATS
+  VENTES
+  BANQUE
+  CAISSE
+  OD
+}
+
+model Journal {
+  id      Int           @id @default(autoincrement())
+  type    JournalType
+  userId  Int           @default(1)
+  user    User          @relation(fields: [userId], references: [id])
+  entries JournalEntry[]
+
+  @@unique([type, userId])
+}
+
+model PeriodeLock {
+  id       Int      @id @default(autoincrement())
+  annee    Int
+  mois     Int
+  userId   Int      @default(1)
+  user     User     @relation(fields: [userId], references: [id])
+  lockedAt DateTime @default(now())
+
+  @@unique([annee, mois, userId])
+}
+
+model ReleveImport {
+  id         Int           @id @default(autoincrement())
+  nom        String
+  dateDebut  DateTime?
+  dateFin    DateTime?
+  soldeDebut Int?          // centimes
+  soldeFin   Int?          // centimes
+  createdAt  DateTime      @default(now())
+  userId     Int           @default(1)
+  user       User          @relation(fields: [userId], references: [id])
+  lignes     LigneReleve[]
+}
+
+model LigneReleve {
+  id            Int          @id @default(autoincrement())
+  releveId      Int
+  releve        ReleveImport @relation(fields: [releveId], references: [id], onDelete: Cascade)
+  date          DateTime
+  libelle       String
+  montant       Int          // centimes, positif = crédit, négatif = débit
+  reference     String?
+  rapprochee    Boolean      @default(false)
+  journalLineId Int?
+  journalLine   JournalLine? @relation(fields: [journalLineId], references: [id])
+  createdAt     DateTime     @default(now())
+}
+
+enum FiscalYearStatus {
+  OUVERT
+  CLOTURE
+}
+
+model FiscalYear {
+  id        Int              @id @default(autoincrement())
+  annee     Int
+  statut    FiscalYearStatus @default(OUVERT)
+  closedAt  DateTime?
+  createdAt DateTime         @default(now())
+  userId    Int              @default(1)
+  user      User             @relation(fields: [userId], references: [id])
+
+  @@unique([annee, userId])
 }

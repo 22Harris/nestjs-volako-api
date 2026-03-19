@@ -10,7 +10,7 @@ export class GetOperationUseCase {
     private readonly repo: OperationRepository,
   ) {}
 
-  execute(id: number): Promise<Operation | null> {
-    return this.repo.findById(id);
+  execute(id: number, userId: number): Promise<Operation | null> {
+    return this.repo.findById(id, userId);
   }
 }

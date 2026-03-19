@@ -10,7 +10,7 @@ export class SearchAccountUseCase{
         private readonly accountRepository: AccountRepository
     ){}
 
-    execute(query : string): Promise<Account[]>{
-        return this.accountRepository.searchAccount(query)
+    execute(query: string, userId: number): Promise<Account[]>{
+        return this.accountRepository.searchAccount(query, userId)
     }
 }

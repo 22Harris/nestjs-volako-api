@@ -5,5 +5,5 @@ import { Budget } from '../../domain/entities/budget.entity';
 @Injectable()
 export class DeleteLigneUseCase {
   constructor(@Inject(BUDGET_REPOSITORY) private readonly repo: BudgetRepository) {}
-  execute(budgetId: number, ligneId: number): Promise<Budget> { return this.repo.deleteLigne(budgetId, ligneId); }
+  execute(budgetId: number, ligneId: number, userId: number): Promise<Budget> { return this.repo.deleteLigne(budgetId, ligneId, userId); }
 }

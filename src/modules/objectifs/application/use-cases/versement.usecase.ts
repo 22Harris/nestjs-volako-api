@@ -5,5 +5,5 @@ import { Objectif } from '../../domain/entities/objectif.entity';
 @Injectable()
 export class VersementUseCase {
   constructor(@Inject(OBJECTIF_REPOSITORY) private readonly repo: ObjectifRepository) {}
-  execute(id: number, montant: number): Promise<Objectif> { return this.repo.versement(id, montant); }
+  execute(id: number, montant: number, userId: number): Promise<Objectif> { return this.repo.versement(id, montant, userId); }
 }

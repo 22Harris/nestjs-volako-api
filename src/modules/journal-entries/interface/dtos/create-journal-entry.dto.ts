@@ -23,6 +23,10 @@ export class CreateJournalEntryDto {
   @IsInt()
   operationId?: number;
 
+  @IsOptional()
+  @IsInt()
+  journalId?: number;
+
   @IsArray()
   @ArrayMinSize(2)
   @ValidateNested({ each: true })

@@ -1,0 +1,1 @@
+export const PERIODE_LOCKS = 'PERIODE_LOCKS';

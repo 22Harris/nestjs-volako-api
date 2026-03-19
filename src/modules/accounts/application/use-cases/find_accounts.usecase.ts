@@ -10,7 +10,7 @@ export class FindAccountsUseCase{
         private readonly accountRepository: AccountRepository
     ){}
 
-    execute():Promise<Account[]>{
-        return this.accountRepository.findAccounts()
+    execute(userId: number):Promise<Account[]>{
+        return this.accountRepository.findAccounts(userId)
     }
 }

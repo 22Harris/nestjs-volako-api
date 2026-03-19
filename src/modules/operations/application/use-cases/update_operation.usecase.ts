@@ -11,7 +11,7 @@ export class UpdateOperationUseCase {
     private readonly repo: OperationRepository,
   ) {}
 
-  execute(id: number, data: Partial<OperationDto>): Promise<Operation> {
-    return this.repo.update(id, data);
+  execute(id: number, data: Partial<OperationDto>, userId: number): Promise<Operation> {
+    return this.repo.update(id, data, userId);
   }
 }

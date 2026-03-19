@@ -7,6 +7,8 @@ export class JournalEntry {
     public readonly lines: JournalLine[],
     public readonly id?: number,
     public readonly operationId?: number,
+    public readonly journalId?: number,
+    public readonly pieceNumber?: string,
   ) {
     this.validate();
   }

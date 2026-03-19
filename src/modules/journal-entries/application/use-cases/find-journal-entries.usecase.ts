@@ -10,7 +10,7 @@ export class FindJournalEntriesUseCase {
     private readonly journalEntryRepository: JournalEntryRepository,
   ) {}
 
-  execute(operationId?: number): Promise<JournalEntry[]> {
-    return this.journalEntryRepository.findJournalEntries(operationId);
+  execute(userId: number, operationId?: number, journalId?: number): Promise<JournalEntry[]> {
+    return this.journalEntryRepository.findJournalEntries(userId, operationId, journalId);
   }
 }

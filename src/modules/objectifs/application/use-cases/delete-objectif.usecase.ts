@@ -4,5 +4,5 @@ import type { ObjectifRepository } from '../ports/objectif.repository.interface'
 @Injectable()
 export class DeleteObjectifUseCase {
   constructor(@Inject(OBJECTIF_REPOSITORY) private readonly repo: ObjectifRepository) {}
-  execute(id: number): Promise<void> { return this.repo.delete(id); }
+  execute(id: number, userId: number): Promise<void> { return this.repo.delete(id, userId); }
 }

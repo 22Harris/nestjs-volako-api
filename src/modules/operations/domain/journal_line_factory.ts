@@ -7,6 +7,7 @@ export class JournalLineFactory {
   static async generateJournalLines(
     operation: CreateOperationDto,
     accountRepository: AccountRepository,
+    userId: number,
   ): Promise<CreateJournalLineDto[]> {
     const rule = OPERATION_RULES[operation.type];
 
@@ -14,20 +15,12 @@ export class JournalLineFactory {
       throw new Error(`No accounting rules for ${operation.type}`);
     }
 
-    const debitAccount = await accountRepository.findByCode(rule.debit);
-    const creditAccount = await accountRepository.findByCode(rule.credit);
+    const debitAccount = await accountRepository.findByCode(rule.debit, userId);
+    const creditAccount = await accountRepository.findByCode(rule.credit, userId);
 
     return [
-      {
-        accountId: debitAccount.id ? debitAccount.id : 0,
-        debit: operation.amount,
-        credit: 0,
-      },
-      {
-        accountId: creditAccount.id ? creditAccount.id : 0,
-        debit: 0,
-        credit: operation.amount,
-      },
+      { accountId: debitAccount.id ? debitAccount.id : 0, debit: operation.amount, credit: 0 },
+      { accountId: creditAccount.id ? creditAccount.id : 0, debit: 0, credit: operation.amount },
     ];
   }
 }

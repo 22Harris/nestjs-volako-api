@@ -5,5 +5,5 @@ import { Evenement } from '../../domain/entities/evenement.entity';
 @Injectable()
 export class FindEvenementsUseCase {
   constructor(@Inject(EVENEMENT_REPOSITORY) private readonly repo: EvenementRepository) {}
-  execute(): Promise<Evenement[]> { return this.repo.findAll(); }
+  execute(userId: number): Promise<Evenement[]> { return this.repo.findAll(userId); }
 }

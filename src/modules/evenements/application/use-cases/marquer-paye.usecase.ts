@@ -5,7 +5,7 @@ import { Evenement } from '../../domain/entities/evenement.entity';
 @Injectable()
 export class MarquerPayeUseCase {
   constructor(@Inject(EVENEMENT_REPOSITORY) private readonly repo: EvenementRepository) {}
-  execute(id: number): Promise<{ updated: Evenement; next: Evenement | null }> {
-    return this.repo.marquerPaye(id);
+  execute(id: number, userId: number): Promise<{ updated: Evenement; next: Evenement | null }> {
+    return this.repo.marquerPaye(id, userId);
   }
 }

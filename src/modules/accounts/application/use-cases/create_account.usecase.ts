@@ -8,17 +8,17 @@ import { Account } from "../../domain/entities/account.entity";
 @Injectable()
 export class CreateAccountUseCase{
     constructor(
-        @Inject(ACCOUNTS_REPOSITORY) 
+        @Inject(ACCOUNTS_REPOSITORY)
         private readonly accountRepository: AccountRepository,
     ){}
 
-    execute(createAccountDto: CreateAccountDto):Promise<Account>{
+    execute(createAccountDto: CreateAccountDto, userId: number):Promise<Account>{
        const account = new Account(
             createAccountDto.code,
             createAccountDto.name,
             createAccountDto.account_class,
         );
-        return this.accountRepository.create(account);
+        return this.accountRepository.create(account, userId);
 
     }
 }

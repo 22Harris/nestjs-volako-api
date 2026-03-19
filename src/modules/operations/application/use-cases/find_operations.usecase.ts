@@ -10,7 +10,7 @@ export class FindOperationsUseCase {
     private readonly repo: OperationRepository,
   ) {}
 
-  execute(filter?: OperationFilter): Promise<Operation[]> {
-    return this.repo.findAll(filter);
+  execute(userId: number, filter?: OperationFilter): Promise<Operation[]> {
+    return this.repo.findAll(userId, filter);
   }
 }

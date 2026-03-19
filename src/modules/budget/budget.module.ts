@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from 'src/prisma/prisma.module';
+import { AuthModule } from '../auth/auth.module';
 import { BudgetController } from './interface/budget.controller';
 import { BUDGET_REPOSITORY } from './application/ports/budget.repository.token';
 import { DbBudgetRepository } from './infrastructure/repositories/db.budget.repository';
@@ -11,7 +12,7 @@ import { SaveLigneUseCase } from './application/use-cases/save-ligne.usecase';
 import { DeleteLigneUseCase } from './application/use-cases/delete-ligne.usecase';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, AuthModule],
   controllers: [BudgetController],
   providers: [
     FindBudgetsUseCase, GetBudgetByMoisUseCase, CreateBudgetUseCase,

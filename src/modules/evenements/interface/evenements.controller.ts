@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseIntPipe, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseIntPipe, Patch, Post, UseGuards } from '@nestjs/common';
 import { FindEvenementsUseCase } from '../application/use-cases/find-evenements.usecase';
 import { GetEvenementUseCase } from '../application/use-cases/get-evenement.usecase';
 import { CreateEvenementUseCase } from '../application/use-cases/create-evenement.usecase';
@@ -6,7 +6,10 @@ import { UpdateEvenementUseCase } from '../application/use-cases/update-evenemen
 import { DeleteEvenementUseCase } from '../application/use-cases/delete-evenement.usecase';
 import { MarquerPayeUseCase } from '../application/use-cases/marquer-paye.usecase';
 import { CreateEvenementDto } from './dtos/create-evenement.dto';
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 
+@UseGuards(JwtAuthGuard)
 @Controller('evenements')
 export class EvenementsController {
   constructor(
@@ -18,14 +21,14 @@ export class EvenementsController {
     private readonly marquerPayeUseCase: MarquerPayeUseCase,
   ) {}
 
-  @Get()     findAll()                               { return this.findEvenementsUseCase.execute(); }
-  @Get(':id') getById(@Param('id', ParseIntPipe) id: number) { return this.getEvenementUseCase.execute(id); }
-  @Post()    create(@Body() dto: CreateEvenementDto)         { return this.createEvenementUseCase.execute(dto); }
-  @Patch(':id') update(@Param('id', ParseIntPipe) id: number, @Body() dto: Partial<CreateEvenementDto>) {
-    return this.updateEvenementUseCase.execute(id, dto as any);
+  @Get()     findAll(@CurrentUser() userId: number)                               { return this.findEvenementsUseCase.execute(userId); }
+  @Get(':id') getById(@Param('id', ParseIntPipe) id: number, @CurrentUser() userId: number) { return this.getEvenementUseCase.execute(id, userId); }
+  @Post()    create(@Body() dto: CreateEvenementDto, @CurrentUser() userId: number)         { return this.createEvenementUseCase.execute(dto, userId); }
+  @Patch(':id') update(@Param('id', ParseIntPipe) id: number, @Body() dto: Partial<CreateEvenementDto>, @CurrentUser() userId: number) {
+    return this.updateEvenementUseCase.execute(id, dto as any, userId);
   }
   @Delete(':id') @HttpCode(204)
-  delete(@Param('id', ParseIntPipe) id: number)             { return this.deleteEvenementUseCase.execute(id); }
+  delete(@Param('id', ParseIntPipe) id: number, @CurrentUser() userId: number)             { return this.deleteEvenementUseCase.execute(id, userId); }
 
-  @Patch(':id/payer') payer(@Param('id', ParseIntPipe) id: number) { return this.marquerPayeUseCase.execute(id); }
+  @Patch(':id/payer') payer(@Param('id', ParseIntPipe) id: number, @CurrentUser() userId: number) { return this.marquerPayeUseCase.execute(id, userId); }
 }

@@ -11,7 +11,7 @@ export class GetJournalEntryByIdUseCase{
         private readonly journalEntryRepository: JournalEntryRepository
     ){}
 
-    execute(journalId: number):Promise<JournalEntry | null>{
-        return this.journalEntryRepository.getJournalById(journalId);
+    execute(journalId: number, userId: number):Promise<JournalEntry | null>{
+        return this.journalEntryRepository.getJournalById(journalId, userId);
     }
 }

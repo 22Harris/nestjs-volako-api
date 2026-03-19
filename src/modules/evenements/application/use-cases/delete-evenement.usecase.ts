@@ -4,5 +4,5 @@ import type { EvenementRepository } from '../ports/evenement.repository.interfac
 @Injectable()
 export class DeleteEvenementUseCase {
   constructor(@Inject(EVENEMENT_REPOSITORY) private readonly repo: EvenementRepository) {}
-  execute(id: number): Promise<void> { return this.repo.delete(id); }
+  execute(id: number, userId: number): Promise<void> { return this.repo.delete(id, userId); }
 }

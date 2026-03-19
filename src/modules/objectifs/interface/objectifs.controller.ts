@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseIntPipe, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseIntPipe, Patch, Post, UseGuards } from '@nestjs/common';
 import { FindObjectifsUseCase } from '../application/use-cases/find-objectifs.usecase';
 import { GetObjectifUseCase } from '../application/use-cases/get-objectif.usecase';
 import { CreateObjectifUseCase } from '../application/use-cases/create-objectif.usecase';
@@ -6,7 +6,10 @@ import { UpdateObjectifUseCase } from '../application/use-cases/update-objectif.
 import { DeleteObjectifUseCase } from '../application/use-cases/delete-objectif.usecase';
 import { VersementUseCase } from '../application/use-cases/versement.usecase';
 import { CreateObjectifDto } from './dtos/create-objectif.dto';
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 
+@UseGuards(JwtAuthGuard)
 @Controller('objectifs')
 export class ObjectifsController {
   constructor(
@@ -18,14 +21,14 @@ export class ObjectifsController {
     private readonly versementUseCase: VersementUseCase,
   ) {}
 
-  @Get()     findAll()                                      { return this.findObjectifsUseCase.execute(); }
-  @Get(':id') getById(@Param('id', ParseIntPipe) id: number){ return this.getObjectifUseCase.execute(id); }
-  @Post()    create(@Body() dto: CreateObjectifDto)         { return this.createObjectifUseCase.execute(dto); }
-  @Patch(':id') update(@Param('id', ParseIntPipe) id: number, @Body() dto: Partial<CreateObjectifDto>) {
-    return this.updateObjectifUseCase.execute(id, dto);
+  @Get()     findAll(@CurrentUser() userId: number)                                      { return this.findObjectifsUseCase.execute(userId); }
+  @Get(':id') getById(@Param('id', ParseIntPipe) id: number, @CurrentUser() userId: number){ return this.getObjectifUseCase.execute(id, userId); }
+  @Post()    create(@Body() dto: CreateObjectifDto, @CurrentUser() userId: number)         { return this.createObjectifUseCase.execute(dto, userId); }
+  @Patch(':id') update(@Param('id', ParseIntPipe) id: number, @Body() dto: Partial<CreateObjectifDto>, @CurrentUser() userId: number) {
+    return this.updateObjectifUseCase.execute(id, dto, userId);
   }
-  @Delete(':id') @HttpCode(204) delete(@Param('id', ParseIntPipe) id: number) { return this.deleteObjectifUseCase.execute(id); }
-  @Patch(':id/versement') versement(@Param('id', ParseIntPipe) id: number, @Body('montant') montant: number) {
-    return this.versementUseCase.execute(id, montant);
+  @Delete(':id') @HttpCode(204) delete(@Param('id', ParseIntPipe) id: number, @CurrentUser() userId: number) { return this.deleteObjectifUseCase.execute(id, userId); }
+  @Patch(':id/versement') versement(@Param('id', ParseIntPipe) id: number, @Body('montant') montant: number, @CurrentUser() userId: number) {
+    return this.versementUseCase.execute(id, montant, userId);
   }
 }

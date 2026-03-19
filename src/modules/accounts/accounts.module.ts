@@ -10,9 +10,11 @@ import { UpdateAccountUseCase } from './application/use-cases/update_account.use
 import { GetAccountByAccountId } from './application/use-cases/get_account_by_accountID.usecase';
 import { FindByCodeUseCase } from './application/use-cases/find_by_code.usecase';
 import { DeleteAccountUseCase } from './application/use-cases/delete_account.usecase';
+import { InitPcgUseCase } from './application/use-cases/init_pcg.usecase';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, AuthModule],
   controllers: [AccountController],
   providers: [
     CreateAccountUseCase,
@@ -22,6 +24,7 @@ import { DeleteAccountUseCase } from './application/use-cases/delete_account.use
     GetAccountByAccountId,
     FindByCodeUseCase,
     DeleteAccountUseCase,
+    InitPcgUseCase,
     {
       provide: ACCOUNTS_REPOSITORY,
       useClass: DbAccountRepository,

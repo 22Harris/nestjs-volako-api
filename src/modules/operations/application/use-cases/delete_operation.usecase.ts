@@ -9,7 +9,7 @@ export class DeleteOperationUseCase {
     private readonly repo: OperationRepository,
   ) {}
 
-  execute(id: number): Promise<void> {
-    return this.repo.delete(id);
+  execute(id: number, userId: number): Promise<void> {
+    return this.repo.delete(id, userId);
   }
 }

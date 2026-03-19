@@ -14,36 +14,33 @@ export class DbOperationsRepository implements OperationRepository {
       id: e.id,
       date: e.date,
       label: e.label,
-      lines: (e.lines ?? []).map((l: any) => ({
-        id: l.id,
-        accountId: l.accountId,
-        debit: l.debit,
-        credit: l.credit,
-      })),
+      lines: (e.lines ?? []).map((l: any) => ({ id: l.id, accountId: l.accountId, debit: l.debit, credit: l.credit })),
     }));
     return new Operation(row.type as OperationType, row.date, row.label, row.id, row.amount, entries);
   }
 
-  async create(operation: OperationDto): Promise<Operation> {
+  async create(operation: OperationDto, userId: number): Promise<Operation> {
     const row = await this.prisma.operation.create({
       data: {
         type: operation.type,
         date: new Date(operation.date),
         label: operation.label,
         amount: operation.amount ?? 0,
+        userId,
       },
     });
     return this.toEntity(row);
   }
 
-  async findAll(filter?: OperationFilter): Promise<Operation[]> {
+  async findAll(userId: number, filter?: OperationFilter): Promise<Operation[]> {
     const rows = await this.prisma.operation.findMany({
       where: {
+        userId,
         ...(filter?.type && { type: filter.type }),
         ...(filter?.dateFrom || filter?.dateTo ? {
           date: {
             ...(filter.dateFrom && { gte: new Date(filter.dateFrom) }),
-            ...(filter.dateTo   && { lte: new Date(filter.dateTo)   }),
+            ...(filter.dateTo && { lte: new Date(filter.dateTo) }),
           },
         } : {}),
       },
@@ -52,20 +49,20 @@ export class DbOperationsRepository implements OperationRepository {
     return rows.map((r) => this.toEntity(r));
   }
 
-  async findById(id: number): Promise<Operation | null> {
-    const row = await this.prisma.operation.findUnique({
-      where: { id },
+  async findById(id: number, userId: number): Promise<Operation | null> {
+    const row = await this.prisma.operation.findFirst({
+      where: { id, userId },
       include: { entries: { include: { lines: true } } },
     });
     return row ? this.toEntity(row) : null;
   }
 
-  async update(id: number, data: Partial<OperationDto>): Promise<Operation> {
+  async update(id: number, data: Partial<OperationDto>, userId: number): Promise<Operation> {
     const row = await this.prisma.operation.update({
-      where: { id },
+      where: { id, userId },
       data: {
-        ...(data.type  && { type: data.type }),
-        ...(data.date  && { date: new Date(data.date) }),
+        ...(data.type && { type: data.type }),
+        ...(data.date && { date: new Date(data.date) }),
         ...(data.label && { label: data.label }),
         ...(data.amount !== undefined && { amount: data.amount }),
       },
@@ -73,7 +70,7 @@ export class DbOperationsRepository implements OperationRepository {
     return this.toEntity(row);
   }
 
-  async delete(id: number): Promise<void> {
-    await this.prisma.operation.delete({ where: { id } });
+  async delete(id: number, userId: number): Promise<void> {
+    await this.prisma.operation.delete({ where: { id, userId } });
   }
 }
