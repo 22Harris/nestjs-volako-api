@@ -1,11 +1,15 @@
 import { Controller, Get, Param, ParseIntPipe, Query, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
+import { RolesGuard } from 'src/common/guards/roles.guard';
+import { Roles } from 'src/common/decorators/roles.decorator';
+import { Role } from 'src/common/enums/role.enum';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { RapportsService } from './rapports.service';
 
 @Controller('rapports')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.ADMIN, Role.DAF, Role.CHEF_COMPTABLE, Role.COMPTABLE, Role.AUDITEUR)
 export class RapportsController {
   constructor(private readonly rapportsService: RapportsService) {}
 

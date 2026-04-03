@@ -1,4 +1,11 @@
-import { JournalEntry } from '../../domain/entities/journal-entries.entity';
+import { JournalEntry, EntryStatus } from '../../domain/entities/journal-entries.entity';
+
+export interface EntryMeta {
+  id: number;
+  statut: EntryStatus;
+  userId: number;
+  date: Date;
+}
 
 export interface AccountBalance {
   accountId: number;
@@ -18,4 +25,6 @@ export interface JournalEntryRepository {
   getAccountBalances(userId: number, dateFrom?: Date, dateTo?: Date): Promise<AccountBalance[]>;
   lettrerLignes(lineIds: number[], userId: number): Promise<string>;
   deletterLignes(lineIds: number[], userId: number): Promise<void>;
+  getEntryMeta(id: number): Promise<EntryMeta | null>;
+  updateStatut(id: number, statut: EntryStatus): Promise<void>;
 }

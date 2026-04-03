@@ -12,10 +12,12 @@ import { Throttle } from '@nestjs/throttler';
 import * as express from 'express';
 import { LoginDto } from './dtos/login.dto';
 import { RegisterDto } from './dtos/register.dto';
+import { SetupAdminDto } from './dtos/setup-admin.dto';
 import { LoginUseCase } from '../application/use-cases/login.usecase';
 import { RegisterUseCase } from '../application/use-cases/register.usecase';
 import { RefreshUseCase } from '../application/use-cases/refresh.usecase';
 import { LogoutUseCase } from '../application/use-cases/logout.usecase';
+import { SetupAdminUseCase } from '../application/use-cases/setup_admin.usecase';
 
 const COOKIE_BASE = {
   httpOnly: true,
@@ -31,7 +33,19 @@ export class AuthController {
     private readonly registerUseCase: RegisterUseCase,
     private readonly refreshUseCase: RefreshUseCase,
     private readonly logoutUseCase: LogoutUseCase,
+    private readonly setupAdminUseCase: SetupAdminUseCase,
   ) {}
+
+  @Post('setup')
+  @HttpCode(HttpStatus.CREATED)
+  async setup(
+    @Body() dto: SetupAdminDto,
+    @Res({ passthrough: true }) res: express.Response,
+  ) {
+    const result = await this.setupAdminUseCase.execute(dto);
+    res.cookie('access_token', result.access_token, { ...COOKIE_BASE, maxAge: 15 * 60 * 1000 });
+    return { user: result.user };
+  }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)

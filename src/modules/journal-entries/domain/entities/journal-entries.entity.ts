@@ -1,5 +1,7 @@
 import { JournalLine } from "./journal-line.entity";
 
+export type EntryStatus = 'BROUILLON' | 'VALIDE' | 'VERROUILLE';
+
 export class JournalEntry {
   constructor(
     public readonly date: Date,
@@ -9,6 +11,8 @@ export class JournalEntry {
     public readonly operationId?: number,
     public readonly journalId?: number,
     public readonly pieceNumber?: string,
+    public readonly statut: EntryStatus = 'BROUILLON',
+    public readonly userId?: number,
   ) {
     this.validate();
   }

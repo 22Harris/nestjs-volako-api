@@ -26,13 +26,18 @@ export class LoginUseCase {
       throw new UnauthorizedException('Email ou mot de passe incorrect');
     }
 
+    if (!user.isActive) {
+      await this.auditLog.log({ userId: user.id, action: 'LOGIN_FAILED', details: 'Compte désactivé', ip });
+      throw new UnauthorizedException('Compte désactivé');
+    }
+
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) {
       await this.auditLog.log({ userId: user.id, action: 'LOGIN_FAILED', details: `Email: ${email}`, ip });
       throw new UnauthorizedException('Email ou mot de passe incorrect');
     }
 
-    const access_token = this.jwtService.sign({ sub: user.id, email: user.email });
+    const access_token = this.jwtService.sign({ sub: user.id, email: user.email, role: user.role, isActive: user.isActive });
 
     const refresh_token = randomBytes(40).toString('hex');
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -43,7 +48,7 @@ export class LoginUseCase {
     return {
       access_token,
       refresh_token,
-      user: { id: user.id, name: user.name, email: user.email },
+      user: { id: user.id, name: user.name, email: user.email, role: user.role },
     };
   }
 }

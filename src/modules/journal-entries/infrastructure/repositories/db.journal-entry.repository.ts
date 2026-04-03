@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { AccountBalance, JournalEntryRepository } from '../../application/ports/journal-entries.repository.interface';
+import { AccountBalance, EntryMeta, JournalEntryRepository } from '../../application/ports/journal-entries.repository.interface';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { JournalEntry } from '../../domain/entities/journal-entries.entity';
+import { EntryStatus, JournalEntry } from '../../domain/entities/journal-entries.entity';
 import { JournalLine } from '../../domain/entities/journal-line.entity';
 
 @Injectable()
@@ -17,6 +17,8 @@ export class DbJournalEntryRepository implements JournalEntryRepository {
       journal.operationId ?? undefined,
       journal.journalId ?? undefined,
       journal.pieceNumber ?? undefined,
+      journal.statut ?? 'BROUILLON',
+      journal.userId ?? undefined,
     );
   }
 
@@ -165,6 +167,19 @@ export class DbJournalEntryRepository implements JournalEntryRepository {
       where: { id: { in: lineIds }, entry: { userId } },
       data: { lettre: null },
     });
+  }
+
+  async getEntryMeta(id: number): Promise<EntryMeta | null> {
+    const row = await this.prisma.journalEntry.findUnique({
+      where: { id },
+      select: { id: true, statut: true, userId: true, date: true },
+    });
+    if (!row) return null;
+    return { id: row.id, statut: row.statut as EntryStatus, userId: row.userId, date: row.date };
+  }
+
+  async updateStatut(id: number, statut: EntryStatus): Promise<void> {
+    await this.prisma.journalEntry.update({ where: { id }, data: { statut } });
   }
 
   async getAccountBalances(userId: number, dateFrom?: Date, dateTo?: Date): Promise<AccountBalance[]> {

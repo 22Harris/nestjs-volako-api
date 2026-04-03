@@ -9,9 +9,12 @@ import { Account } from "../domain/entities/account.entity";
 import { FindAccountsUseCase } from "../application/use-cases/find_accounts.usecase";
 import { InitPcgUseCase } from "../application/use-cases/init_pcg.usecase";
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
+import { RolesGuard } from 'src/common/guards/roles.guard';
+import { Roles } from 'src/common/decorators/roles.decorator';
+import { Role } from 'src/common/enums/role.enum';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('account')
 export class AccountController {
   constructor(
@@ -25,6 +28,7 @@ export class AccountController {
   ) {}
 
   @Post()
+  @Roles(Role.ADMIN, Role.CHEF_COMPTABLE, Role.COMPTABLE)
   create(@Body() createAccountDto: CreateAccountDto, @CurrentUser() userId: number): Promise<Account> {
     return this.createAccountUseCase.execute(createAccountDto, userId);
   }
@@ -40,6 +44,7 @@ export class AccountController {
   }
 
   @Patch(':id')
+  @Roles(Role.ADMIN, Role.CHEF_COMPTABLE, Role.COMPTABLE)
   updateAccount(@Param('id', ParseIntPipe) id: number, @Body() account: CreateAccountDto, @CurrentUser() userId: number): Promise<Account> {
     return this.updateAccountUseCase.execute(id, account, userId);
   }
@@ -51,6 +56,7 @@ export class AccountController {
 
   @Delete(':id')
   @HttpCode(204)
+  @Roles(Role.ADMIN)
   deleteAccount(@Param('id', ParseIntPipe) id: number, @CurrentUser() userId: number): Promise<void> {
     return this.deleteAccountUseCase.execute(id, userId);
   }

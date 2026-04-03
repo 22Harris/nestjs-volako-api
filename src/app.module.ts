@@ -18,10 +18,15 @@ import { FiscalYearsModule } from './modules/fiscal-years/fiscal-years.module';
 import { RapportsModule } from './modules/rapports/rapports.module';
 import { TvaModule } from './modules/tva/tva.module';
 import { RapprochementModule } from './modules/rapprochement/rapprochement.module';
+import { UsersModule } from './modules/users/users.module';
+import { AuditModule } from './modules/audit/audit.module';
+import { TauxChangeModule } from './modules/taux-change/taux-change.module';
 
 @Module({
   imports: [
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 300 }]),
+    UsersModule,
+    AuditModule,
     AccountModule,
     JournalEntryModule,
     OperationsModule,
@@ -37,6 +42,7 @@ import { RapprochementModule } from './modules/rapprochement/rapprochement.modul
     RapportsModule,
     TvaModule,
     RapprochementModule,
+    TauxChangeModule,
   ],
   controllers: [AppController],
   providers: [

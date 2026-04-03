@@ -10,6 +10,9 @@ import { UpdateLabelOfJournalEntryUseCase } from './application/use-cases/update
 import { DeleteJournalEntryUseCase } from './application/use-cases/delete-journal-entry.usecase';
 import { LettrerLignesUseCase } from './application/use-cases/lettrer-lignes.usecase';
 import { DelettrerLignesUseCase } from './application/use-cases/delettrer-lignes.usecase';
+import { ValiderJournalEntryUseCase } from './application/use-cases/valider-journal-entry.usecase';
+import { RejeterJournalEntryUseCase } from './application/use-cases/rejeter-journal-entry.usecase';
+import { VerrouillerJournalEntryUseCase } from './application/use-cases/verrouiller-journal-entry.usecase';
 import { AuthModule } from '../auth/auth.module';
 import { PeriodeLocksModule } from '../periode-locks/periode-locks.module';
 
@@ -24,6 +27,9 @@ import { PeriodeLocksModule } from '../periode-locks/periode-locks.module';
     DeleteJournalEntryUseCase,
     LettrerLignesUseCase,
     DelettrerLignesUseCase,
+    ValiderJournalEntryUseCase,
+    RejeterJournalEntryUseCase,
+    VerrouillerJournalEntryUseCase,
     {
       provide: JOURNAL_ENTRIES,
       useClass: DbJournalEntryRepository,
