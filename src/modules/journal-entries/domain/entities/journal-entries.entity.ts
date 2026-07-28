@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { JournalLine } from "./journal-line.entity";
 
 export type EntryStatus = 'BROUILLON' | 'VALIDE' | 'VERROUILLE';
@@ -19,7 +20,7 @@ export class JournalEntry {
 
   private validate(): void {
     if (this.lines.length < 2) {
-      throw new Error('Une écriture comptable doit contenir au moins 2 lignes');
+      throw new BadRequestException('Une écriture comptable doit contenir au moins 2 lignes');
     }
 
     let totalDebit = 0;
@@ -27,17 +28,17 @@ export class JournalEntry {
 
     for (const line of this.lines) {
       if (line.debit > 0 && line.credit > 0) {
-        throw new Error('Une ligne ne peut pas avoir débit et crédit');
+        throw new BadRequestException('Une ligne ne peut pas avoir débit et crédit');
       }
       if (line.debit === 0 && line.credit === 0) {
-        throw new Error('Une ligne doit avoir un débit ou un crédit');
+        throw new BadRequestException('Une ligne doit avoir un débit ou un crédit');
       }
       totalDebit += line.debit;
       totalCredit += line.credit;
     }
 
     if (totalDebit !== totalCredit) {
-      throw new Error('Écriture comptable non équilibrée');
+      throw new BadRequestException('Écriture comptable non équilibrée');
     }
   }
 }

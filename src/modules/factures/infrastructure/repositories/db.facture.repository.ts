@@ -3,6 +3,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { FactureRepository } from '../../application/ports/facture.repository.interface';
 import { Facture } from '../../domain/entities/facture.entity';
 import { Paiement } from '../../domain/entities/paiement.entity';
+import { PaginatedResult, toPaginated } from '../../../../common/dto/paginated.js';
 
 @Injectable()
 export class DbFactureRepository implements FactureRepository {
@@ -34,13 +35,19 @@ export class DbFactureRepository implements FactureRepository {
 
   private include = { tiers: { select: { nom: true, type: true } }, paiements: true };
 
-  async findAll(userId: number, tiersId?: number): Promise<Facture[]> {
-    const rows = await this.prisma.facture.findMany({
-      where: { userId, ...(tiersId ? { tiersId } : {}) },
-      include: this.include,
-      orderBy: { date: 'desc' },
-    });
-    return rows.map(r => this.toEntity(r));
+  async findAll(userId: number, tiersId?: number, page = 1, pageSize = 50): Promise<PaginatedResult<Facture>> {
+    const where = { userId, ...(tiersId ? { tiersId } : {}) };
+    const [rows, total] = await Promise.all([
+      this.prisma.facture.findMany({
+        where,
+        include: this.include,
+        orderBy: { date: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.facture.count({ where }),
+    ]);
+    return toPaginated(rows.map(r => this.toEntity(r)), total, page, pageSize);
   }
 
   async findById(id: number, userId: number): Promise<Facture | null> {

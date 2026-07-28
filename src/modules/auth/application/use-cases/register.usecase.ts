@@ -6,6 +6,7 @@ import { User } from '../../domain/entities/user.entity';
 import { randomBytes } from 'node:crypto';
 import * as bcrypt from 'bcrypt';
 import { AuditLogService } from 'src/common/audit-log/audit-log.service';
+import { InitPcgUseCase } from 'src/modules/accounts/application/use-cases/init_pcg.usecase';
 
 @Injectable()
 export class RegisterUseCase {
@@ -14,6 +15,7 @@ export class RegisterUseCase {
     private readonly repo: AuthRepository,
     private readonly jwtService: JwtService,
     private readonly auditLog: AuditLogService,
+    private readonly initPcgUseCase: InitPcgUseCase,
   ) {}
 
   async execute(
@@ -28,7 +30,9 @@ export class RegisterUseCase {
     const hashed = await bcrypt.hash(password, 12);
     const user = await this.repo.create(new User(name, email, hashed));
 
-    const access_token = this.jwtService.sign({ sub: user.id, email: user.email });
+    await this.initPcgUseCase.execute(user.id!);
+
+    const access_token = this.jwtService.sign({ sub: user.id, email: user.email, role: user.role, isActive: user.isActive });
 
     const refresh_token = randomBytes(40).toString('hex');
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);

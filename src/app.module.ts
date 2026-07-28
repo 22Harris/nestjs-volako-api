@@ -1,6 +1,12 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { LoggingModule } from './common/logging/logging.module';
+import { CorrelationIdMiddleware } from './common/logging/correlation-id.middleware';
+import { MonitoringModule } from './common/monitoring/monitoring.module';
+import { CacheModule } from '@nestjs/cache-manager';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+
+const FIVE_MINUTES = 5 * 60 * 1000;
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AccountModule } from './modules/accounts/accounts.module';
@@ -21,9 +27,20 @@ import { RapprochementModule } from './modules/rapprochement/rapprochement.modul
 import { UsersModule } from './modules/users/users.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { TauxChangeModule } from './modules/taux-change/taux-change.module';
+import { ImmobilisationsModule } from './modules/immobilisations/immobilisations.module';
+import { CompanyInfoModule } from './modules/company-info/company-info.module';
+import { BackupModule } from './modules/backup/backup.module';
+import { RelancesModule } from './modules/relances/relances.module';
+import { AnalytiqueModule } from './modules/analytique/analytique.module';
+import { RgpdModule } from './modules/rgpd/rgpd.module';
+import { RecurrentesModule } from './modules/recurrentes/recurrentes.module';
+import { Psd2Module } from './modules/psd2/psd2.module';
 
 @Module({
   imports: [
+    LoggingModule,
+    MonitoringModule,
+    CacheModule.register({ ttl: FIVE_MINUTES, isGlobal: true }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 300 }]),
     UsersModule,
     AuditModule,
@@ -43,6 +60,14 @@ import { TauxChangeModule } from './modules/taux-change/taux-change.module';
     TvaModule,
     RapprochementModule,
     TauxChangeModule,
+    ImmobilisationsModule,
+    CompanyInfoModule,
+    BackupModule,
+    RelancesModule,
+    AnalytiqueModule,
+    RgpdModule,
+    RecurrentesModule,
+    Psd2Module,
   ],
   controllers: [AppController],
   providers: [
@@ -50,4 +75,8 @@ import { TauxChangeModule } from './modules/taux-change/taux-change.module';
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(CorrelationIdMiddleware).forRoutes('*');
+  }
+}

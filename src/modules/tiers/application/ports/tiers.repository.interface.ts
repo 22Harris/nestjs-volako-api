@@ -1,4 +1,5 @@
 import { Tiers } from '../../domain/entities/tiers.entity';
+import { PaginatedResult } from '../../../../common/dto/paginated.js';
 
 export interface TiersSolde {
   tiersId: number;
@@ -10,7 +11,7 @@ export interface TiersSolde {
 }
 
 export interface TiersRepository {
-  findAll(userId: number): Promise<Tiers[]>;
+  findAll(userId: number, page?: number, pageSize?: number): Promise<PaginatedResult<Tiers>>;
   findById(id: number, userId: number): Promise<Tiers | null>;
   search(term: string, userId: number): Promise<Tiers[]>;
   create(data: Partial<Tiers>, userId: number): Promise<Tiers>;

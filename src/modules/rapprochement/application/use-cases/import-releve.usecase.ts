@@ -3,12 +3,14 @@ import { RAPPROCHEMENT_REPOSITORY } from '../ports/rapprochement.repository.toke
 import type { RapprochementRepository, ImportReleveData } from '../ports/rapprochement.repository.interface';
 import { CsvParser } from '../../infrastructure/parsers/csv.parser';
 import { OfxParser } from '../../infrastructure/parsers/ofx.parser';
+import { AuditLogService } from 'src/common/audit-log/audit-log.service';
 
 @Injectable()
 export class ImportReleveUseCase {
   constructor(
     @Inject(RAPPROCHEMENT_REPOSITORY)
     private readonly repo: RapprochementRepository,
+    private readonly auditLog: AuditLogService,
   ) {}
 
   async execute(
@@ -31,6 +33,8 @@ export class ImportReleveUseCase {
       throw new BadRequestException('Aucune transaction trouvée dans le fichier.');
     }
 
-    return this.repo.createReleve(data, userId);
+    const releve = await this.repo.createReleve(data, userId);
+    await this.auditLog.log({ userId, action: 'RELEVE_IMPORT', details: `Fichier: ${filename}, ${data.lignes.length} transactions` });
+    return releve;
   }
 }

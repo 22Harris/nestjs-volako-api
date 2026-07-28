@@ -16,7 +16,10 @@ import { GetFiscalYearUseCase } from '../application/use-cases/get-fiscal-year.u
 import { CloseFiscalYearUseCase } from '../application/use-cases/close-fiscal-year.usecase';
 import { CreateFiscalYearDto } from './dtos/create-fiscal-year.dto';
 import { FiscalYear } from '../domain/entities/fiscal-year.entity';
+import { ApiTags, ApiOperation, ApiResponse, ApiCookieAuth } from '@nestjs/swagger';
 
+@ApiTags('fiscal-years')
+@ApiCookieAuth('access_token')
 @UseGuards(JwtAuthGuard)
 @Controller('fiscal-years')
 export class FiscalYearsController {
@@ -28,6 +31,8 @@ export class FiscalYearsController {
   ) {}
 
   @Post()
+  @ApiOperation({ summary: 'Créer un exercice fiscal' })
+  @ApiResponse({ status: 201, description: 'Exercice créé' })
   create(@Body() dto: CreateFiscalYearDto, @CurrentUser() userId: number): Promise<FiscalYear> {
     return this.createFiscalYear.execute(dto.annee, userId);
   }
@@ -44,6 +49,9 @@ export class FiscalYearsController {
 
   @Post(':annee/cloturer')
   @HttpCode(200)
+  @ApiOperation({ summary: 'Clôturer un exercice fiscal — génère les écritures de clôture et d\'ouverture' })
+  @ApiResponse({ status: 200, description: 'Exercice clôturé' })
+  @ApiResponse({ status: 409, description: 'Exercice déjà clôturé' })
   cloturer(
     @Param('annee', ParseIntPipe) annee: number,
     @CurrentUser() userId: number,

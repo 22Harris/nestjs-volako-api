@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { AccountBalance, EntryMeta, JournalEntryRepository } from '../../application/ports/journal-entries.repository.interface';
+import { AccountBalance, EntryMeta, JournalEntryRepository, LineForLettrage } from '../../application/ports/journal-entries.repository.interface';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { PaginatedResult, toPaginated } from '../../../../common/dto/paginated.js';
 import { EntryStatus, JournalEntry } from '../../domain/entities/journal-entries.entity';
 import { JournalLine } from '../../domain/entities/journal-line.entity';
 
@@ -22,72 +23,88 @@ export class DbJournalEntryRepository implements JournalEntryRepository {
     );
   }
 
+  private readonly prefixMap: Record<string, string> = {
+    ACHATS: 'AC', VENTES: 'VT', BANQUE: 'BQ', CAISSE: 'CA', OD: 'OD',
+  };
+
+  /** Incrémente atomiquement le compteur (upsert PostgreSQL) et retourne le prochain numéro de pièce. */
   async nextPieceNumber(journalDbId: number, year: number, prefix: string): Promise<string> {
-    const count = await this.prisma.journalEntry.count({
-      where: {
-        journalId: journalDbId,
-        date: {
-          gte: new Date(`${year}-01-01`),
-          lt: new Date(`${year + 1}-01-01`),
-        },
-      },
-    });
-    const seq = String(count + 1).padStart(5, '0');
-    return `${prefix}-${year}-${seq}`;
+    const rows = await this.prisma.$queryRaw<[{ lastSeq: number }]>`
+      INSERT INTO "JournalSequence" ("journalId", "year", "lastSeq")
+      VALUES (${journalDbId}::int, ${year}::int, 1)
+      ON CONFLICT ("journalId", "year") DO UPDATE
+        SET "lastSeq" = "JournalSequence"."lastSeq" + 1
+      RETURNING "lastSeq"
+    `;
+    return `${prefix}-${year}-${String(rows[0].lastSeq).padStart(5, '0')}`;
   }
 
   async createJournalEntry(journal: JournalEntry, operationId: number | undefined, userId: number, journalDbId?: number): Promise<JournalEntry> {
-    const prefixMap: Record<string, string> = { ACHATS: 'AC', VENTES: 'VT', BANQUE: 'BQ', CAISSE: 'CA', OD: 'OD' };
     const year = journal.date.getFullYear();
-    let pieceNumber: string | undefined;
 
-    if (journalDbId === undefined) {
-      // Fallback : utiliser le journal OD de l'utilisateur pour garantir une numérotation à toutes les écritures
-      let odJournal = await this.prisma.journal.findFirst({ where: { userId, type: 'OD' } });
-      odJournal ??= await this.prisma.journal.create({ data: { type: 'OD', userId } });
-      pieceNumber = await this.nextPieceNumber(odJournal.id, year, 'OD');
-      journalDbId = odJournal.id;
-    } else {
-      const jRow = await this.prisma.journal.findUnique({ where: { id: journalDbId } });
-      if (jRow) {
-        const prefix = prefixMap[jRow.type] ?? 'OD';
-        pieceNumber = await this.nextPieceNumber(journalDbId, year, prefix);
+    const row = await this.prisma.$transaction(async (tx) => {
+      let resolvedJournalId = journalDbId;
+      let prefix = 'OD';
+
+      if (resolvedJournalId === undefined) {
+        let odJournal = await tx.journal.findFirst({ where: { userId, type: 'OD' } });
+        odJournal ??= await tx.journal.create({ data: { type: 'OD', userId } });
+        resolvedJournalId = odJournal.id;
+      } else {
+        const jRow = await tx.journal.findUnique({ where: { id: resolvedJournalId } });
+        if (jRow) prefix = this.prefixMap[jRow.type] ?? 'OD';
       }
-    }
 
-    const row = await this.prisma.journalEntry.create({
-      data: {
-        date: journal.date,
-        label: journal.label,
-        pieceNumber: pieceNumber ?? null,
-        operationId: operationId ?? null,
-        journalId: journalDbId ?? null,
-        userId,
-        lines: {
-          create: journal.lines.map((line) => ({
-            accountId: line.accountId,
-            debit: line.debit,
-            credit: line.credit,
-            codeTva: line.codeTva ?? null,
-          })),
+      const pieceRows = await tx.$queryRaw<[{ lastSeq: number }]>`
+        INSERT INTO "JournalSequence" ("journalId", "year", "lastSeq")
+        VALUES (${resolvedJournalId}::int, ${year}::int, 1)
+        ON CONFLICT ("journalId", "year") DO UPDATE
+          SET "lastSeq" = "JournalSequence"."lastSeq" + 1
+        RETURNING "lastSeq"
+      `;
+      const pieceNumber = `${prefix}-${year}-${String(pieceRows[0].lastSeq).padStart(5, '0')}`;
+
+      return tx.journalEntry.create({
+        data: {
+          date: journal.date,
+          label: journal.label,
+          pieceNumber,
+          operationId: operationId ?? null,
+          journalId: resolvedJournalId,
+          userId,
+          lines: {
+            create: journal.lines.map((line) => ({
+              accountId: line.accountId,
+              debit: line.debit,
+              credit: line.credit,
+              codeTva: line.codeTva ?? null,
+            })),
+          },
         },
-      },
-      include: { lines: true },
+        include: { lines: true },
+      });
     });
+
     return this.toEntity(row);
   }
 
-  async findJournalEntries(userId: number, operationId?: number, journalId?: number): Promise<JournalEntry[]> {
-    const rows = await this.prisma.journalEntry.findMany({
-      where: {
-        userId,
-        ...(operationId !== undefined && { operationId }),
-        ...(journalId !== undefined && { journalId }),
-      },
-      include: { lines: true },
-      orderBy: { date: 'desc' },
-    });
-    return rows.map((r) => this.toEntity(r));
+  async findJournalEntries(userId: number, operationId?: number, journalId?: number, page = 1, pageSize = 50): Promise<PaginatedResult<JournalEntry>> {
+    const where = {
+      userId,
+      ...(operationId !== undefined && { operationId }),
+      ...(journalId !== undefined && { journalId }),
+    };
+    const [rows, total] = await Promise.all([
+      this.prisma.journalEntry.findMany({
+        where,
+        include: { lines: true },
+        orderBy: { date: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.journalEntry.count({ where }),
+    ]);
+    return toPaginated(rows.map((r) => this.toEntity(r)), total, page, pageSize);
   }
 
   async getJournalById(journalId: number, userId: number): Promise<JournalEntry | null> {
@@ -175,11 +192,45 @@ export class DbJournalEntryRepository implements JournalEntryRepository {
       select: { id: true, statut: true, userId: true, date: true },
     });
     if (!row) return null;
-    return { id: row.id, statut: row.statut as EntryStatus, userId: row.userId, date: row.date };
+    return { id: row.id, statut: row.statut, userId: row.userId, date: row.date };
   }
 
   async updateStatut(id: number, statut: EntryStatus): Promise<void> {
     await this.prisma.journalEntry.update({ where: { id }, data: { statut } });
+  }
+
+  async getUnletteredLines(accountId: number, userId: number): Promise<LineForLettrage[]> {
+    const rows = await this.prisma.journalLine.findMany({
+      where: { accountId, lettre: null, entry: { userId } },
+      include: { entry: true },
+      orderBy: { entry: { date: 'asc' } },
+    });
+    return rows.map(r => ({
+      id: r.id,
+      debit: r.debit,
+      credit: r.credit,
+      lettre: null,
+      date: r.entry.date,
+      entryLabel: r.entry.label,
+      pieceNumber: r.entry.pieceNumber ?? null,
+    }));
+  }
+
+  async getLinesForAccount(accountId: number, userId: number): Promise<LineForLettrage[]> {
+    const rows = await this.prisma.journalLine.findMany({
+      where: { accountId, entry: { userId } },
+      include: { entry: true },
+      orderBy: [{ lettre: 'asc' }, { entry: { date: 'asc' } }],
+    });
+    return rows.map(r => ({
+      id: r.id,
+      debit: r.debit,
+      credit: r.credit,
+      lettre: r.lettre ?? null,
+      date: r.entry.date,
+      entryLabel: r.entry.label,
+      pieceNumber: r.entry.pieceNumber ?? null,
+    }));
   }
 
   async getAccountBalances(userId: number, dateFrom?: Date, dateTo?: Date): Promise<AccountBalance[]> {

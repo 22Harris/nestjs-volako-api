@@ -46,6 +46,10 @@ model JournalEntry {
   journal     Journal?    @relation(fields: [journalId], references: [id])
 
   lines JournalLine[]
+
+  @@index([userId])
+  @@index([date])
+  @@index([userId, date])
 }
 
 model JournalLine {
@@ -57,9 +61,37 @@ model JournalLine {
   lettre    String?  // lettrage comptable (A, B, C, AA…)
   codeTva   CodeTva? // code TVA optionnel par ligne
 
-  account      Account      @relation(fields: [accountId], references: [id])
-  entry        JournalEntry @relation(fields: [entryId], references: [id])
-  lignesReleve LigneReleve[]
+  account          Account          @relation(fields: [accountId], references: [id])
+  entry            JournalEntry     @relation(fields: [entryId], references: [id])
+  lignesReleve     LigneReleve[]
+  lignesAnalytique LigneAnalytique[]
+
+  @@index([accountId])
+  @@index([entryId])
+}
+
+model CentreAnalytique {
+  id      Int    @id @default(autoincrement())
+  code    String
+  libelle String
+  userId  Int
+  user    User   @relation(fields: [userId], references: [id])
+  lignes  LigneAnalytique[]
+
+  @@unique([code, userId])
+  @@index([userId])
+}
+
+model LigneAnalytique {
+  id            Int              @id @default(autoincrement())
+  journalLineId Int
+  centreId      Int
+  pourcentage   Int              // 0-100 ; la somme par journalLineId doit valoir 100
+  journalLine   JournalLine      @relation(fields: [journalLineId], references: [id], onDelete: Cascade)
+  centre        CentreAnalytique @relation(fields: [centreId], references: [id], onDelete: Cascade)
+
+  @@unique([journalLineId, centreId])
+  @@index([centreId])
 }
 
 enum Role {
@@ -87,12 +119,14 @@ enum CodeTva {
 }
 
 model User {
-  id       Int     @id @default(autoincrement())
-  name     String
-  email    String  @unique
-  password String
-  role     Role    @default(ASSISTANT)
-  isActive Boolean @default(true)
+  id                Int     @id @default(autoincrement())
+  name              String
+  email             String  @unique
+  password          String
+  role              Role    @default(ASSISTANT)
+  isActive          Boolean @default(true)
+  twoFactorSecret   String?
+  twoFactorEnabled  Boolean @default(false)
 
   operations     Operation[]
   accounts       Account[]
@@ -105,9 +139,17 @@ model User {
   factures       Facture[]
   paiements      Paiement[]
   journals       Journal[]
-  periodeLocks   PeriodeLock[]
-  fiscalYears    FiscalYear[]
-  relevesImport  ReleveImport[]
+  periodeLocks     PeriodeLock[]
+  fiscalYears      FiscalYear[]
+  relevesImport    ReleveImport[]
+  immobilisations  Immobilisation[]
+  companyInfo      CompanyInfo?
+  relances          Relance[]
+  centresAnalytique CentreAnalytique[]
+  declarationsTva   DeclarationTva[]
+  demandesRgpd        DemandeRgpd[]
+  ecrituresRecurrentes EcritureRecurrente[]
+  comptesBank          CompteBank[]
 }
 
 model Tiers {
@@ -138,6 +180,21 @@ model Facture {
   tiers          Tiers      @relation(fields: [tiersId], references: [id])
   user           User       @relation(fields: [userId], references: [id])
   paiements      Paiement[]
+  relances       Relance[]
+}
+
+model Relance {
+  id        Int      @id @default(autoincrement())
+  factureId Int
+  niveau    Int      // 1 = rappel amiable | 2 = 2ème relance | 3 = mise en demeure
+  date      DateTime @default(now())
+  note      String?
+  userId    Int
+  facture   Facture  @relation(fields: [factureId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([factureId])
 }
 
 model Paiement {
@@ -170,6 +227,9 @@ model AuditLog {
   details   String?
   ip        String?
   createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
 }
 
 model Evenement {
@@ -229,13 +289,23 @@ enum JournalType {
 }
 
 model Journal {
-  id      Int           @id @default(autoincrement())
-  type    JournalType
-  userId  Int           @default(1)
-  user    User          @relation(fields: [userId], references: [id])
-  entries JournalEntry[]
+  id        Int              @id @default(autoincrement())
+  type      JournalType
+  userId    Int              @default(1)
+  user      User             @relation(fields: [userId], references: [id])
+  entries   JournalEntry[]
+  sequences JournalSequence[]
 
   @@unique([type, userId])
+}
+
+model JournalSequence {
+  journalId Int
+  year      Int
+  lastSeq   Int     @default(0)
+  journal   Journal @relation(fields: [journalId], references: [id])
+
+  @@id([journalId, year])
 }
 
 model PeriodeLock {
@@ -291,4 +361,167 @@ model FiscalYear {
   user      User             @relation(fields: [userId], references: [id])
 
   @@unique([annee, userId])
+}
+
+model CompanyInfo {
+  id      Int     @id @default(autoincrement())
+  userId  Int     @unique
+  user    User    @relation(fields: [userId], references: [id])
+  nom     String
+  siret   String?
+  numTva  String?
+  adresse String?
+  email   String?
+  iban    String?
+}
+
+enum MethodeAmortissement {
+  LINEAIRE
+  DEGRESSIF
+}
+
+enum StatutImmobilisation {
+  ACTIF
+  CEDE
+}
+
+model Immobilisation {
+  id                      Int                  @id @default(autoincrement())
+  libelle                 String
+  dateAcquisition         DateTime
+  valeurBrute             Int                  // centimes
+  dureeAmortissement      Int                  // années
+  methode                 MethodeAmortissement @default(LINEAIRE)
+  compteBilanCode         String               // ex: 2154, 2181
+  compteAmortissementCode String               // ex: 2815, 2818
+  compteChargeCode        String               // ex: 6811, 6812
+  statut                  StatutImmobilisation @default(ACTIF)
+  dateCession             DateTime?
+  prixCession             Int?                 // centimes
+  userId                  Int                  @default(1)
+  user                    User                 @relation(fields: [userId], references: [id])
+  lignes                  LigneAmortissement[]
+
+  @@index([userId])
+}
+
+model LigneAmortissement {
+  id                   Int            @id @default(autoincrement())
+  immobilisationId     Int
+  immobilisation       Immobilisation @relation(fields: [immobilisationId], references: [id], onDelete: Cascade)
+  exercice             Int            // année
+  dotation             Int            // centimes
+  cumulAmortissement   Int            // centimes
+  valeurNetteComptable Int            // centimes
+  comptabilisee        Boolean        @default(false)
+  journalEntryId       Int?           // référence à l'écriture générée
+
+  @@unique([immobilisationId, exercice])
+  @@index([immobilisationId])
+}
+
+enum StatutDeclaration {
+  BROUILLON
+  SOUMISE
+  VALIDEE
+}
+
+model DeclarationTva {
+  id             Int                @id @default(autoincrement())
+  periode        String             // ex: "2026-01" (mensuel) ou "2026-T1" (trimestriel)
+  dateDebut      DateTime
+  dateFin        DateTime
+  dateCreation   DateTime           @default(now())
+  dateSoumission DateTime?
+  statut         StatutDeclaration  @default(BROUILLON)
+  tvaAPayer      Int                // centimes
+  creditTva      Int                // centimes
+  donnees        Json               // Ca3Report sérialisé
+  userId         Int
+  user           User               @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([userId, dateDebut])
+}
+
+// ── Open Banking PSD2 ────────────────────────────────────────────────────
+
+model CompteBank {
+  id             Int       @id @default(autoincrement())
+  nom            String
+  iban           String
+  provider       String    // ex: "bnp", "sg", "ca", "mock"
+  accessToken    String
+  refreshToken   String?
+  tokenExpiresAt DateTime?
+  actif          Boolean   @default(true)
+  derniereSync   DateTime?
+  userId         Int
+  user           User      @relation(fields: [userId], references: [id])
+  createdAt      DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// ── Écritures récurrentes ─────────────────────────────────────────────────
+
+enum Frequence {
+  QUOTIDIEN
+  HEBDOMADAIRE
+  MENSUEL
+  TRIMESTRIEL
+  ANNUEL
+}
+
+model EcritureRecurrente {
+  id                Int       @id @default(autoincrement())
+  label             String
+  frequence         Frequence
+  prochainExecution DateTime
+  actif             Boolean   @default(true)
+  journalId         Int?
+  userId            Int
+  user              User      @relation(fields: [userId], references: [id])
+  lignes            LigneRecurrente[]
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([actif, prochainExecution])
+}
+
+model LigneRecurrente {
+  id         Int                @id @default(autoincrement())
+  ecritureId Int
+  ecriture   EcritureRecurrente @relation(fields: [ecritureId], references: [id], onDelete: Cascade)
+  accountId  Int
+  debit      Int
+  credit     Int
+  codeTva    CodeTva?
+}
+
+enum TypeDemande {
+  ACCES         // Droit d'accès (DSAR)
+  EFFACEMENT    // Droit à l'oubli
+  PORTABILITE   // Portabilité des données
+  RECTIFICATION // Rectification des données
+}
+
+enum StatutDemande {
+  EN_ATTENTE
+  TRAITEE
+  REFUSEE
+}
+
+model DemandeRgpd {
+  id             Int           @id @default(autoincrement())
+  type           TypeDemande
+  statut         StatutDemande @default(EN_ATTENTE)
+  dateCreation   DateTime      @default(now())
+  dateTraitement DateTime?
+  note           String?
+  userId         Int
+  user           User          @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }

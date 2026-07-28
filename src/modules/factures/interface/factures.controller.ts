@@ -1,7 +1,8 @@
 import {
   Controller, Get, Post, Patch, Delete, Body, Param,
-  Query, ParseIntPipe, UseGuards, HttpCode, HttpStatus,
+  Query, ParseIntPipe, UseGuards, HttpCode, HttpStatus, Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { FindFacturesUseCase } from '../application/use-cases/find-factures.usecase';
@@ -11,6 +12,7 @@ import { UpdateFactureUseCase } from '../application/use-cases/update-facture.us
 import { DeleteFactureUseCase } from '../application/use-cases/delete-facture.usecase';
 import { AddPaiementUseCase } from '../application/use-cases/add-paiement.usecase';
 import { LettrerUseCase } from '../application/use-cases/lettrer.usecase';
+import { GenerateFacturXUseCase } from '../application/use-cases/generate-facturx.usecase';
 import { CreateFactureDto } from './dtos/create-facture.dto';
 import { UpdateFactureDto } from './dtos/update-facture.dto';
 import { AddPaiementDto } from './dtos/add-paiement.dto';
@@ -26,11 +28,22 @@ export class FacturesController {
     private readonly remove: DeleteFactureUseCase,
     private readonly addPaiement: AddPaiementUseCase,
     private readonly lettrer: LettrerUseCase,
+    private readonly generateFacturX: GenerateFacturXUseCase,
   ) {}
 
   @Get()
-  getAll(@CurrentUser() userId: number, @Query('tiersId') tiersId?: string) {
-    return this.findAll.execute(userId, tiersId ? parseInt(tiersId, 10) : undefined);
+  getAll(
+    @CurrentUser() userId: number,
+    @Query('tiersId') tiersId?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.findAll.execute(
+      userId,
+      tiersId ? Number.parseInt(tiersId, 10) : undefined,
+      page ? Number(page) : undefined,
+      pageSize ? Number(pageSize) : undefined,
+    );
   }
 
   @Get(':id')
@@ -91,5 +104,24 @@ export class FacturesController {
     @CurrentUser() userId: number,
   ) {
     return this.lettrer.execute(id, lettre, userId);
+  }
+
+  @Get(':id/facturx')
+  async getFacturX(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() userId: number,
+    @Query('profil') profil: string | undefined,
+    @Query('tauxTva') tauxTva: string | undefined,
+    @Res() res: Response,
+  ) {
+    const xml = await this.generateFacturX.execute(id, userId, {
+      profile: (profil as any) ?? 'MINIMUM',
+      tauxTva: tauxTva === undefined ? undefined : Number(tauxTva),
+    });
+    (res as any).set({
+      'Content-Type': 'application/xml; charset=utf-8',
+      'Content-Disposition': `attachment; filename="facture-${id}-facturx.xml"`,
+    });
+    (res as any).send(xml);
   }
 }

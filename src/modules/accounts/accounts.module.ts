@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { ACCOUNTS_REPOSITORY } from './application/ports/accounts.repository.token';
 import { CreateAccountUseCase } from './application/use-cases/create_account.usecase';
 import { DbAccountRepository } from './infrastructure/repositories/db.accounts.repository';
@@ -14,7 +14,7 @@ import { InitPcgUseCase } from './application/use-cases/init_pcg.usecase';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [PrismaModule, forwardRef(() => AuthModule)],
   controllers: [AccountController],
   providers: [
     CreateAccountUseCase,
@@ -30,6 +30,6 @@ import { AuthModule } from '../auth/auth.module';
       useClass: DbAccountRepository,
     },
   ],
-  exports: [ACCOUNTS_REPOSITORY],
+  exports: [ACCOUNTS_REPOSITORY, InitPcgUseCase],
 })
 export class AccountModule {}

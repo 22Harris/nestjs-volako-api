@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { TiersRepository, TiersSolde } from '../../application/ports/tiers.repository.interface';
 import { Tiers } from '../../domain/entities/tiers.entity';
+import { PaginatedResult, toPaginated } from '../../../../common/dto/paginated.js';
 
 @Injectable()
 export class DbTiersRepository implements TiersRepository {
@@ -24,13 +25,19 @@ export class DbTiersRepository implements TiersRepository {
 
   private include = { account: { select: { code: true, name: true } } };
 
-  async findAll(userId: number): Promise<Tiers[]> {
-    const rows = await this.prisma.tiers.findMany({
-      where: { userId },
-      include: this.include,
-      orderBy: { nom: 'asc' },
-    });
-    return rows.map(r => this.toEntity(r));
+  async findAll(userId: number, page = 1, pageSize = 50): Promise<PaginatedResult<Tiers>> {
+    const where = { userId };
+    const [rows, total] = await Promise.all([
+      this.prisma.tiers.findMany({
+        where,
+        include: this.include,
+        orderBy: { nom: 'asc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.tiers.count({ where }),
+    ]);
+    return toPaginated(rows.map(r => this.toEntity(r)), total, page, pageSize);
   }
 
   async findById(id: number, userId: number): Promise<Tiers | null> {

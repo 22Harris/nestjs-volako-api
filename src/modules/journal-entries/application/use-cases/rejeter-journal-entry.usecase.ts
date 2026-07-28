@@ -1,12 +1,14 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { JOURNAL_ENTRIES } from '../ports/journal-entries.token';
 import type { JournalEntryRepository } from '../ports/journal-entries.repository.interface';
+import { AuditLogService } from 'src/common/audit-log/audit-log.service';
 
 @Injectable()
 export class RejeterJournalEntryUseCase {
   constructor(
     @Inject(JOURNAL_ENTRIES)
     private readonly repo: JournalEntryRepository,
+    private readonly auditLog: AuditLogService,
   ) {}
 
   async execute(id: number, userId: number): Promise<void> {
@@ -16,5 +18,6 @@ export class RejeterJournalEntryUseCase {
       throw new BadRequestException(`Seule une écriture VALIDÉE peut être rejetée (statut actuel : ${meta.statut})`);
     }
     await this.repo.updateStatut(id, 'BROUILLON');
+    await this.auditLog.log({ userId, action: 'ENTRY_REJETE', entity: 'JournalEntry', entityId: id });
   }
 }

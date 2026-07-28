@@ -8,9 +8,14 @@ import { DeleteLigneUseCase } from '../application/use-cases/delete-ligne.usecas
 import { CreateBudgetDto } from './dtos/create-budget.dto';
 import { SaveLigneDto } from './dtos/save-ligne.dto';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
+import { RolesGuard } from 'src/common/guards/roles.guard';
+import { Roles } from 'src/common/decorators/roles.decorator';
+import { Role } from 'src/common/enums/role.enum';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 
-@UseGuards(JwtAuthGuard)
+const WRITERS = [Role.ADMIN, Role.DAF, Role.CHEF_COMPTABLE, Role.COMPTABLE];
+
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('budget')
 export class BudgetController {
   constructor(
@@ -27,19 +32,22 @@ export class BudgetController {
     return this.findBudgetsUseCase.execute(userId);
   }
 
-  @Post() create(@Body() dto: CreateBudgetDto, @CurrentUser() userId: number) {
+  @Post() @Roles(...WRITERS)
+  create(@Body() dto: CreateBudgetDto, @CurrentUser() userId: number) {
     return this.createBudgetUseCase.execute(dto.exercice, dto.mois, userId);
   }
 
-  @Delete(':id') @HttpCode(204) delete(@Param('id', ParseIntPipe) id: number, @CurrentUser() userId: number) {
+  @Delete(':id') @HttpCode(204) @Roles(...WRITERS)
+  delete(@Param('id', ParseIntPipe) id: number, @CurrentUser() userId: number) {
     return this.deleteBudgetUseCase.execute(id, userId);
   }
 
-  @Post(':id/ligne') saveLigne(@Param('id', ParseIntPipe) id: number, @Body() dto: SaveLigneDto, @CurrentUser() userId: number) {
+  @Post(':id/ligne') @Roles(...WRITERS)
+  saveLigne(@Param('id', ParseIntPipe) id: number, @Body() dto: SaveLigneDto, @CurrentUser() userId: number) {
     return this.saveLigneUseCase.execute(id, dto as any, userId);
   }
 
-  @Delete(':id/ligne/:ligneId') @HttpCode(200)
+  @Delete(':id/ligne/:ligneId') @HttpCode(200) @Roles(...WRITERS)
   deleteLigne(@Param('id', ParseIntPipe) id: number, @Param('ligneId', ParseIntPipe) ligneId: number, @CurrentUser() userId: number) {
     return this.deleteLigneUseCase.execute(id, ligneId, userId);
   }

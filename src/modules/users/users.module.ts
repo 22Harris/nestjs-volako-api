@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from 'src/prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
+import { AuditLogModule } from 'src/common/audit-log/audit-log.module';
 import { USERS_REPOSITORY } from './application/ports/users.repository.token';
 import { DbUsersRepository } from './infrastructure/repositories/db.users.repository';
 import { FindUsersUseCase } from './application/use-cases/find_users.usecase';
@@ -10,7 +11,7 @@ import { ToggleActiveUseCase } from './application/use-cases/toggle_active.useca
 import { UsersController } from './interface/users.controller';
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [PrismaModule, AuthModule, AuditLogModule],
   controllers: [UsersController],
   providers: [
     FindUsersUseCase,

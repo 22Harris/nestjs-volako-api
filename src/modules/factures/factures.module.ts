@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from 'src/prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
+import { CompanyInfoModule } from '../company-info/company-info.module';
 import { FacturesController } from './interface/factures.controller';
 import { FACTURE_REPOSITORY } from './application/ports/facture.repository.token';
 import { DbFactureRepository } from './infrastructure/repositories/db.facture.repository';
@@ -11,13 +12,15 @@ import { UpdateFactureUseCase } from './application/use-cases/update-facture.use
 import { DeleteFactureUseCase } from './application/use-cases/delete-facture.usecase';
 import { AddPaiementUseCase } from './application/use-cases/add-paiement.usecase';
 import { LettrerUseCase } from './application/use-cases/lettrer.usecase';
+import { GenerateFacturXUseCase } from './application/use-cases/generate-facturx.usecase';
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [PrismaModule, AuthModule, CompanyInfoModule],
   controllers: [FacturesController],
   providers: [
     FindFacturesUseCase, GetFactureUseCase, CreateFactureUseCase,
-    UpdateFactureUseCase, DeleteFactureUseCase, AddPaiementUseCase, LettrerUseCase,
+    UpdateFactureUseCase, DeleteFactureUseCase, AddPaiementUseCase,
+    LettrerUseCase, GenerateFacturXUseCase,
     { provide: FACTURE_REPOSITORY, useClass: DbFactureRepository },
   ],
 })

@@ -1,6 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { JOURNAL_ENTRIES } from "../ports/journal-entries.token";
 import type { JournalEntryRepository } from "../ports/journal-entries.repository.interface";
+import { PaginatedResult } from "../../../../common/dto/paginated.js";
 import { JournalEntry } from "../../domain/entities/journal-entries.entity";
 
 @Injectable()
@@ -10,7 +11,7 @@ export class FindJournalEntriesUseCase {
     private readonly journalEntryRepository: JournalEntryRepository,
   ) {}
 
-  execute(userId: number, operationId?: number, journalId?: number): Promise<JournalEntry[]> {
-    return this.journalEntryRepository.findJournalEntries(userId, operationId, journalId);
+  execute(userId: number, operationId?: number, journalId?: number, page?: number, pageSize?: number): Promise<PaginatedResult<JournalEntry>> {
+    return this.journalEntryRepository.findJournalEntries(userId, operationId, journalId, page, pageSize);
   }
 }

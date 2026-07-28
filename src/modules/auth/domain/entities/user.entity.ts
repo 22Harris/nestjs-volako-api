@@ -8,5 +8,7 @@ export class User {
     public readonly id?: number,
     public readonly role: Role = Role.ASSISTANT,
     public readonly isActive: boolean = true,
+    public readonly twoFactorSecret?: string,
+    public readonly twoFactorEnabled: boolean = false,
   ) {}
 }

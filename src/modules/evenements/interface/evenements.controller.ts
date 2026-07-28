@@ -7,9 +7,14 @@ import { DeleteEvenementUseCase } from '../application/use-cases/delete-evenemen
 import { MarquerPayeUseCase } from '../application/use-cases/marquer-paye.usecase';
 import { CreateEvenementDto } from './dtos/create-evenement.dto';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
+import { RolesGuard } from 'src/common/guards/roles.guard';
+import { Roles } from 'src/common/decorators/roles.decorator';
+import { Role } from 'src/common/enums/role.enum';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 
-@UseGuards(JwtAuthGuard)
+const WRITERS = [Role.ADMIN, Role.DAF, Role.CHEF_COMPTABLE, Role.COMPTABLE, Role.ASSISTANT];
+
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('evenements')
 export class EvenementsController {
   constructor(
@@ -21,14 +26,20 @@ export class EvenementsController {
     private readonly marquerPayeUseCase: MarquerPayeUseCase,
   ) {}
 
-  @Get()     findAll(@CurrentUser() userId: number)                               { return this.findEvenementsUseCase.execute(userId); }
+  @Get()      findAll(@CurrentUser() userId: number) { return this.findEvenementsUseCase.execute(userId); }
   @Get(':id') getById(@Param('id', ParseIntPipe) id: number, @CurrentUser() userId: number) { return this.getEvenementUseCase.execute(id, userId); }
-  @Post()    create(@Body() dto: CreateEvenementDto, @CurrentUser() userId: number)         { return this.createEvenementUseCase.execute(dto, userId); }
-  @Patch(':id') update(@Param('id', ParseIntPipe) id: number, @Body() dto: Partial<CreateEvenementDto>, @CurrentUser() userId: number) {
+
+  @Post()    @Roles(...WRITERS)
+  create(@Body() dto: CreateEvenementDto, @CurrentUser() userId: number) { return this.createEvenementUseCase.execute(dto, userId); }
+
+  @Patch(':id') @Roles(...WRITERS)
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: Partial<CreateEvenementDto>, @CurrentUser() userId: number) {
     return this.updateEvenementUseCase.execute(id, dto as any, userId);
   }
-  @Delete(':id') @HttpCode(204)
-  delete(@Param('id', ParseIntPipe) id: number, @CurrentUser() userId: number)             { return this.deleteEvenementUseCase.execute(id, userId); }
 
-  @Patch(':id/payer') payer(@Param('id', ParseIntPipe) id: number, @CurrentUser() userId: number) { return this.marquerPayeUseCase.execute(id, userId); }
+  @Delete(':id') @HttpCode(204) @Roles(...WRITERS)
+  delete(@Param('id', ParseIntPipe) id: number, @CurrentUser() userId: number) { return this.deleteEvenementUseCase.execute(id, userId); }
+
+  @Patch(':id/payer') @Roles(...WRITERS)
+  payer(@Param('id', ParseIntPipe) id: number, @CurrentUser() userId: number) { return this.marquerPayeUseCase.execute(id, userId); }
 }

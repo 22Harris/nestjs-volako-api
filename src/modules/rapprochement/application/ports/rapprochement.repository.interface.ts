@@ -17,6 +17,14 @@ export interface ImportReleveData {
   lignes: ParsedLigne[];
 }
 
+export interface JournalLineCandidate {
+  id: number;
+  debit: number;
+  credit: number;
+  account: { id: number; code: string; name: string };
+  entry: { id: number; date: Date; label: string; pieceNumber: string | null };
+}
+
 export interface RapprochementRepository {
   createReleve(data: ImportReleveData, userId: number): Promise<ReleveImport & { lignes: LigneReleve[] }>;
   findReleves(userId: number): Promise<(ReleveImport & { lignes: LigneReleve[] })[]>;
@@ -25,4 +33,13 @@ export interface RapprochementRepository {
   rapprocherLigne(ligneId: number, journalLineId: number): Promise<LigneReleve>;
   derapprocherLigne(ligneId: number): Promise<LigneReleve>;
   findLigneReleve(ligneId: number): Promise<LigneReleve | null>;
+  findLigneReleveForUser(ligneId: number, userId: number): Promise<LigneReleve | null>;
+  findPendingLignesForReleve(releveId: number, userId: number): Promise<LigneReleve[]>;
+  findJournalLinesForMatching(
+    userId: number,
+    montantAbs: number,
+    date: Date,
+    toleranceJours: number,
+    tolerancePct: number,
+  ): Promise<JournalLineCandidate[]>;
 }

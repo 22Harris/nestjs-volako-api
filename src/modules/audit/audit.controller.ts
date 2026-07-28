@@ -4,6 +4,7 @@ import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { Role } from 'src/common/enums/role.enum';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { toPaginated } from '../../common/dto/paginated.js';
 
 @Controller('audit-log')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -12,14 +13,20 @@ export class AuditController {
   constructor(private readonly prisma: PrismaService) {}
 
   @Get()
-  findAll(
-    @Query('limit') limit?: string,
-    @Query('offset') offset?: string,
+  async findAll(
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
   ) {
-    return this.prisma.auditLog.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: limit ? Number(limit) : 100,
-      skip: offset ? Number(offset) : 0,
-    });
+    const p = page ? Number(page) : 1;
+    const ps = pageSize ? Number(pageSize) : 50;
+    const [data, total] = await Promise.all([
+      this.prisma.auditLog.findMany({
+        orderBy: { createdAt: 'desc' },
+        skip: (p - 1) * ps,
+        take: ps,
+      }),
+      this.prisma.auditLog.count(),
+    ]);
+    return toPaginated(data, total, p, ps);
   }
 }

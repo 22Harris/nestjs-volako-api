@@ -1,4 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
+import * as XLSX from 'xlsx';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 export interface BilanPoste {
@@ -93,18 +96,37 @@ export interface GrandLivreResponse {
   solde: number;
 }
 
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+const BALANCE_CACHE_KEY = (userId: number) => `balance:${userId}`;
+const GRAND_LIVRE_CACHE_KEY = (userId: number, accountId: number, dateFrom = '', dateTo = '', page = 1, pageSize = 50) =>
+  `grand-livre:${userId}:${accountId}:${dateFrom}:${dateTo}:${page}:${pageSize}`;
+
 @Injectable()
 export class RapportsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
+  ) {}
 
-  async getBalance(userId: number): Promise<BalanceLine[]> {
-    const accounts = await this.prisma.account.findMany({
+  async getBalance(userId: number, page = 1, pageSize = 50): Promise<PaginatedResponse<BalanceLine>> {
+    const cacheKey = BALANCE_CACHE_KEY(userId) + `:${page}:${pageSize}`;
+    const cached = await this.cache.get<PaginatedResponse<BalanceLine>>(cacheKey);
+    if (cached) return cached;
+
+    const allAccounts = await this.prisma.account.findMany({
       where: { userId },
       include: { journalLines: true },
       orderBy: { code: 'asc' },
     });
 
-    return accounts.map((a) => ({
+    const allLines: BalanceLine[] = allAccounts.map((a) => ({
       id: a.id,
       code: a.code,
       name: a.name,
@@ -112,6 +134,23 @@ export class RapportsService {
       totalDebit: a.journalLines.reduce((s, l) => s + l.debit, 0),
       totalCredit: a.journalLines.reduce((s, l) => s + l.credit, 0),
     }));
+
+    const total = allLines.length;
+    const offset = (page - 1) * pageSize;
+    const result: PaginatedResponse<BalanceLine> = {
+      data: allLines.slice(offset, offset + pageSize),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+
+    await this.cache.set(cacheKey, result);
+    return result;
+  }
+
+  async invalidateBalanceCache(userId: number): Promise<void> {
+    await this.cache.del(BALANCE_CACHE_KEY(userId));
   }
 
   async getGrandLivre(
@@ -119,7 +158,13 @@ export class RapportsService {
     accountId: number,
     dateFrom?: string,
     dateTo?: string,
-  ): Promise<GrandLivreResponse> {
+    page = 1,
+    pageSize = 50,
+  ): Promise<GrandLivreResponse & { pagination: { total: number; page: number; pageSize: number; totalPages: number } }> {
+    const cacheKey = GRAND_LIVRE_CACHE_KEY(userId, accountId, dateFrom, dateTo, page, pageSize);
+    const cached = await this.cache.get<GrandLivreResponse & { pagination: any }>(cacheKey);
+    if (cached) return cached;
+
     const account = await this.prisma.account.findFirst({
       where: { id: accountId, userId },
     });
@@ -135,7 +180,7 @@ export class RapportsService {
           }
         : {};
 
-    const lines = await this.prisma.journalLine.findMany({
+    const allLines = await this.prisma.journalLine.findMany({
       where: {
         accountId,
         entry: { userId, ...dateFilter },
@@ -146,8 +191,11 @@ export class RapportsService {
       orderBy: [{ entry: { date: 'asc' } }, { id: 'asc' }],
     });
 
+    const totalDebit = allLines.reduce((s, l) => s + l.debit, 0);
+    const totalCredit = allLines.reduce((s, l) => s + l.credit, 0);
+
     let cumul = 0;
-    const mappedLines: GrandLivreLigne[] = lines.map((l) => {
+    const allMapped: GrandLivreLigne[] = allLines.map((l) => {
       cumul += l.debit - l.credit;
       return {
         id: l.id,
@@ -162,16 +210,18 @@ export class RapportsService {
       };
     });
 
-    const totalDebit = lines.reduce((s, l) => s + l.debit, 0);
-    const totalCredit = lines.reduce((s, l) => s + l.credit, 0);
-
-    return {
+    const offset = (page - 1) * pageSize;
+    const result = {
       account: { id: account.id, code: account.code, name: account.name, account_class: account.class },
-      lines: mappedLines,
+      lines: allMapped.slice(offset, offset + pageSize),
       totalDebit,
       totalCredit,
       solde: totalDebit - totalCredit,
+      pagination: { total: allMapped.length, page, pageSize, totalPages: Math.ceil(allMapped.length / pageSize) },
     };
+
+    await this.cache.set(cacheKey, result);
+    return result;
   }
 
   async getBilan(userId: number, exercice: number): Promise<BilanReport> {
@@ -307,75 +357,179 @@ export class RapportsService {
     };
   }
 
-  async getFec(userId: number, dateFrom?: string, dateTo?: string): Promise<string> {
+  // ─── Helpers FEC partagés ─────────────────────────────────────────────────
+
+  private static fmtDate(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}${m}${day}`;
+  }
+
+  private static fmtAmt(centimes: number): string {
+    return (centimes / 100).toFixed(2).replace('.', ',');
+  }
+
+  private static readonly JOURNAL_LABELS: Record<string, string> = {
+    ACHATS: 'Journal des achats',
+    VENTES: 'Journal des ventes',
+    BANQUE: 'Journal de banque',
+    CAISSE: 'Journal de caisse',
+    OD:     'Opérations diverses',
+  };
+
+  private static readonly FEC_COLUMNS = [
+    'JournalCode', 'JournalLib', 'EcritureNum', 'EcritureDate',
+    'CompteNum', 'CompteLib', 'CompAuxNum', 'CompAuxLib',
+    'PieceRef', 'PieceDate', 'EcritureLib',
+    'Debit', 'Credit', 'EcritureLet', 'DateLet', 'ValidDate',
+    'Montantdevise', 'Idevise',
+  ] as const;
+
+  private async resolveFecDates(
+    userId: number,
+    exerciceId?: number,
+    dateFrom?: string,
+    dateTo?: string,
+  ): Promise<{ dateFrom?: string; dateTo?: string; annee?: number }> {
+    if (!exerciceId) return { dateFrom, dateTo };
+    const fy = await this.prisma.fiscalYear.findFirst({ where: { id: exerciceId, userId } });
+    if (!fy) throw new NotFoundException('Exercice fiscal introuvable');
+    return {
+      dateFrom: `${fy.annee}-01-01`,
+      dateTo:   `${fy.annee}-12-31`,
+      annee:    fy.annee,
+    };
+  }
+
+  private async fetchFecRows(userId: number, dateFrom?: string, dateTo?: string) {
     const dateFilter =
       dateFrom || dateTo
-        ? {
-            date: {
-              ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
-              ...(dateTo ? { lte: new Date(dateTo) } : {}),
-            },
-          }
+        ? { date: { ...(dateFrom ? { gte: new Date(dateFrom) } : {}), ...(dateTo ? { lte: new Date(dateTo) } : {}) } }
         : {};
 
     const lines = await this.prisma.journalLine.findMany({
       where: { entry: { userId, ...dateFilter } },
-      include: {
-        account: true,
-        entry: { include: { journal: true } },
-      },
+      include: { account: true, entry: { include: { journal: true } } },
       orderBy: [{ entry: { date: 'asc' } }, { entry: { id: 'asc' } }, { id: 'asc' }],
     });
 
-    const fmtDate = (d: Date): string => {
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${y}${m}${day}`;
-    };
-
-    const fmtAmt = (centimes: number): string =>
-      (centimes / 100).toFixed(2).replace('.', ',');
-
-    const JOURNAL_LABELS: Record<string, string> = {
-      ACHATS: 'Journal des achats',
-      VENTES: 'Journal des ventes',
-      BANQUE: 'Journal de banque',
-      CAISSE: 'Journal de caisse',
-      OD: 'Opérations diverses',
-    };
-
-    const header =
-      'JournalCode|JournalLib|EcritureNum|EcritureDate|CompteNum|CompteLib|CompAuxNum|CompAuxLib|PieceRef|PieceDate|EcritureLib|Debit|Credit|EcritureLet|DateLet|ValidDate|Montantdevise|Idevise';
-
-    const rows = lines.map((l) => {
-      const journal = l.entry.journal;
-      const jCode = journal?.type ?? 'OD';
-      const jLib = journal ? (JOURNAL_LABELS[journal.type] ?? journal.type) : 'Opérations diverses';
-      const date = fmtDate(l.entry.date);
+    return lines.map((l) => {
+      const jCode = l.entry.journal?.type ?? 'OD';
+      const jLib  = l.entry.journal
+        ? (RapportsService.JOURNAL_LABELS[l.entry.journal.type] ?? l.entry.journal.type)
+        : 'Opérations diverses';
+      const date        = RapportsService.fmtDate(l.entry.date);
       const ecritureNum = l.entry.pieceNumber ?? String(l.entry.id);
-      return [
-        jCode,
-        jLib,
-        ecritureNum,
-        date,
-        l.account.code,
-        l.account.name,
-        '',
-        '',
-        l.entry.pieceNumber ?? '',
-        date,
-        l.entry.label.substring(0, 100),
-        fmtAmt(l.debit),
-        fmtAmt(l.credit),
-        l.lettre ?? '',
-        '',
-        date,
-        '',
-        '',
-      ].join('|');
+      return {
+        JournalCode:   jCode.substring(0, 6),
+        JournalLib:    jLib,
+        EcritureNum:   ecritureNum.substring(0, 20),
+        EcritureDate:  date,
+        CompteNum:     l.account.code.substring(0, 15),
+        CompteLib:     l.account.name,
+        CompAuxNum:    '',
+        CompAuxLib:    '',
+        PieceRef:      (l.entry.pieceNumber ?? '').substring(0, 20),
+        PieceDate:     date,
+        EcritureLib:   l.entry.label.substring(0, 100),
+        Debit:         RapportsService.fmtAmt(l.debit),
+        Credit:        RapportsService.fmtAmt(l.credit),
+        EcritureLet:   l.lettre ?? '',
+        DateLet:       '',
+        ValidDate:     date,
+        Montantdevise: '',
+        Idevise:       '',
+      };
+    });
+  }
+
+  // ─── FEC TXT (obligation légale DGFiP) ────────────────────────────────────
+
+  async getFec(userId: number, dateFrom?: string, dateTo?: string, exerciceId?: number): Promise<{ content: string; annee?: number }> {
+    const resolved = await this.resolveFecDates(userId, exerciceId, dateFrom, dateTo);
+    const rows = await this.fetchFecRows(userId, resolved.dateFrom, resolved.dateTo);
+    const header = RapportsService.FEC_COLUMNS.join('|');
+    const lines  = rows.map((r) => RapportsService.FEC_COLUMNS.map((c) => r[c]).join('|'));
+    // BOM UTF-8 + CRLF — conformité DGFiP
+    return { content: '﻿' + [header, ...lines].join('\r\n'), annee: resolved.annee };
+  }
+
+  // ─── FEC Excel ────────────────────────────────────────────────────────────
+
+  async getFecExcel(userId: number, dateFrom?: string, dateTo?: string, exerciceId?: number): Promise<{ buffer: Buffer; annee?: number }> {
+    const resolved = await this.resolveFecDates(userId, exerciceId, dateFrom, dateTo);
+    const rows = await this.fetchFecRows(userId, resolved.dateFrom, resolved.dateTo);
+
+    const wsData = [
+      RapportsService.FEC_COLUMNS as unknown as string[],
+      ...rows.map((r) => RapportsService.FEC_COLUMNS.map((c) => r[c])),
+    ];
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Style de l'en-tête
+    const headerRange = XLSX.utils.decode_range(ws['!ref']!);
+    for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
+      const cell = ws[XLSX.utils.encode_cell({ r: 0, c: col })];
+      if (cell) cell.s = { font: { bold: true }, fill: { fgColor: { rgb: '0D1B2A' } } };
+    }
+
+    // Largeurs de colonnes automatiques
+    ws['!cols'] = [
+      { wch: 12 }, { wch: 24 }, { wch: 16 }, { wch: 12 },
+      { wch: 12 }, { wch: 30 }, { wch: 10 }, { wch: 20 },
+      { wch: 16 }, { wch: 12 }, { wch: 40 },
+      { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 12 },
+      { wch: 12 }, { wch: 8 },
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, 'FEC');
+    return { buffer: Buffer.from(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })), annee: resolved.annee };
+  }
+
+  // ─── Validation FEC (contrôles pré-DGFiP) ────────────────────────────────
+
+  async validateFec(userId: number, dateFrom?: string, dateTo?: string, exerciceId?: number): Promise<{
+    valid: boolean;
+    lignes: number;
+    erreurs: string[];
+    avertissements: string[];
+  }> {
+    const resolved = await this.resolveFecDates(userId, exerciceId, dateFrom, dateTo);
+    const rows = await this.fetchFecRows(userId, resolved.dateFrom, resolved.dateTo);
+    const erreurs: string[] = [];
+    const avertissements: string[] = [];
+
+    const DATE_RE  = /^\d{8}$/;
+    const AMOUNT_RE = /^\d+,\d{2}$/;
+
+    rows.forEach((r, i) => {
+      const n = i + 2; // ligne Excel (1 = header)
+      if (!r.JournalCode)                 erreurs.push(`L${n} : JournalCode vide`);
+      if (r.JournalCode.length > 6)       erreurs.push(`L${n} : JournalCode > 6 caractères (${r.JournalCode})`);
+      if (!r.EcritureNum)                 erreurs.push(`L${n} : EcritureNum vide`);
+      if (!DATE_RE.test(r.EcritureDate))  erreurs.push(`L${n} : EcritureDate invalide (${r.EcritureDate})`);
+      if (!r.CompteNum)                   erreurs.push(`L${n} : CompteNum vide`);
+      if (r.CompteNum.length > 15)        erreurs.push(`L${n} : CompteNum > 15 caractères`);
+      if (!AMOUNT_RE.test(r.Debit))       erreurs.push(`L${n} : Debit invalide (${r.Debit})`);
+      if (!AMOUNT_RE.test(r.Credit))      erreurs.push(`L${n} : Credit invalide (${r.Credit})`);
+      if (r.Debit === '0,00' && r.Credit === '0,00')
+        avertissements.push(`L${n} : Ligne à zéro (${r.CompteNum})`);
     });
 
-    return [header, ...rows].join('\r\n');
+    // Vérifier l'équilibre global
+    const totalDebit  = rows.reduce((s, r) => s + Number.parseFloat(r.Debit.replace(',', '.')), 0);
+    const totalCredit = rows.reduce((s, r) => s + Number.parseFloat(r.Credit.replace(',', '.')), 0);
+    if (Math.abs(totalDebit - totalCredit) > 0.01) {
+      erreurs.push(`Déséquilibre global : Débit ${totalDebit.toFixed(2)} ≠ Crédit ${totalCredit.toFixed(2)}`);
+    }
+
+    if (rows.length === 0) {
+      avertissements.push('Aucune écriture dans la période sélectionnée');
+    }
+
+    return { valid: erreurs.length === 0, lignes: rows.length, erreurs, avertissements };
   }
 }

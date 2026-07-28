@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiCookieAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { FindTiersUseCase } from '../application/use-cases/find-tiers.usecase';
@@ -11,6 +12,8 @@ import { SearchTiersUseCase } from '../application/use-cases/search-tiers.usecas
 import { CreateTiersDto } from './dtos/create-tiers.dto';
 import { UpdateTiersDto } from './dtos/update-tiers.dto';
 
+@ApiTags('tiers')
+@ApiCookieAuth('access_token')
 @UseGuards(JwtAuthGuard)
 @Controller('tiers')
 export class TiersController {
@@ -25,8 +28,12 @@ export class TiersController {
   ) {}
 
   @Get()
-  getAll(@CurrentUser() userId: number) {
-    return this.findAll.execute(userId);
+  getAll(
+    @CurrentUser() userId: number,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.findAll.execute(userId, page ? Number(page) : undefined, pageSize ? Number(pageSize) : undefined);
   }
 
   @Get('soldes')
@@ -45,6 +52,7 @@ export class TiersController {
   }
 
   @Post()
+  @ApiOperation({ summary: 'Créer un tiers (client, fournisseur, salarié…)' })
   createTiers(@Body() dto: CreateTiersDto, @CurrentUser() userId: number) {
     return this.create.execute(dto, userId);
   }

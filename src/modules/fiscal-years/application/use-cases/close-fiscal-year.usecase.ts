@@ -1,4 +1,5 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { AuditLogService } from 'src/common/audit-log/audit-log.service';
 import type { FiscalYearRepository } from '../ports/fiscal-year.repository.interface';
 import { FISCAL_YEAR_REPOSITORY } from '../ports/fiscal-year.token';
 import { FiscalYear, FiscalYearStatus } from '../../domain/entities/fiscal-year.entity';
@@ -23,6 +24,7 @@ export class CloseFiscalYearUseCase {
     private readonly accountRepo: AccountRepository,
     @Inject(PERIODE_LOCKS)
     private readonly periodeLocksRepo: PeriodeLocksRepository,
+    private readonly auditLog: AuditLogService,
   ) {}
 
   async execute(annee: number, userId: number): Promise<FiscalYear> {
@@ -48,18 +50,24 @@ export class CloseFiscalYearUseCase {
       (b) => b.accountCode.startsWith('7') && b.totalDebit !== b.totalCredit,
     );
 
-    // 3. Trouver ou créer le compte 120 (Résultat de l'exercice)
-    const compte120 = await this.findOrCreateAccount('120', "Résultat de l'exercice", 1, userId);
+    // 3. Calculer le résultat net pour choisir compte 120 (bénéfice) ou 129 (perte)
+    const netCharges  = charges.reduce((s, b) => s + (b.totalDebit - b.totalCredit), 0);
+    const netProduits = produits.reduce((s, b) => s + (b.totalCredit - b.totalDebit), 0);
+    const resultat    = netProduits - netCharges;
 
-    // 4. Écriture de clôture des charges (6xx → 120)
+    const compteResultat = resultat >= 0
+      ? await this.findOrCreateAccount('120', "Résultat de l'exercice (bénéfice)", 1, userId)
+      : await this.findOrCreateAccount('129', "Résultat de l'exercice (perte)", 1, userId);
+
+    // 4. Écriture de clôture des charges (6xx → compte résultat)
     if (charges.length > 0) {
-      const entry = this.buildClosingEntry(closingDate, `Clôture des charges — Exercice ${annee}`, charges, compte120.id!, 'charges');
+      const entry = this.buildClosingEntry(closingDate, `Clôture des charges — Exercice ${annee}`, charges, compteResultat.id!, 'charges');
       await this.journalEntryRepo.createJournalEntry(entry, undefined, userId);
     }
 
-    // 5. Écriture de clôture des produits (7xx → 120)
+    // 5. Écriture de clôture des produits (7xx → compte résultat)
     if (produits.length > 0) {
-      const entry = this.buildClosingEntry(closingDate, `Clôture des produits — Exercice ${annee}`, produits, compte120.id!, 'produits');
+      const entry = this.buildClosingEntry(closingDate, `Clôture des produits — Exercice ${annee}`, produits, compteResultat.id!, 'produits');
       await this.journalEntryRepo.createJournalEntry(entry, undefined, userId);
     }
 
@@ -71,7 +79,16 @@ export class CloseFiscalYearUseCase {
     await this.lockAllPeriods(annee, userId);
 
     // 8. Clôturer l'exercice
-    return this.fiscalYearRepo.close(annee, userId);
+    const closed = await this.fiscalYearRepo.close(annee, userId);
+
+    // 9. Créer automatiquement l'exercice suivant s'il n'existe pas encore
+    const nextFy = await this.fiscalYearRepo.findByAnnee(annee + 1, userId);
+    if (!nextFy) {
+      await this.fiscalYearRepo.create(annee + 1, userId);
+    }
+
+    await this.auditLog.log({ userId, action: 'FISCAL_YEAR_CLOSED', entity: 'FiscalYear', details: `Exercice ${annee} clôturé` });
+    return closed;
   }
 
   /** Construit l'écriture de clôture pour les charges (sens débit→crédit) ou produits (sens crédit→débit). */
@@ -87,7 +104,13 @@ export class CloseFiscalYearUseCase {
     for (const b of balances) {
       const net = type === 'charges' ? b.totalDebit - b.totalCredit : b.totalCredit - b.totalDebit;
       netTotal += net;
-      lines.push(net > 0 ? new JournalLine(b.accountId, 0, net) : new JournalLine(b.accountId, -net, 0));
+      if (type === 'charges') {
+        // Charges ont un solde débiteur → on les solde par un crédit
+        lines.push(net > 0 ? new JournalLine(b.accountId, 0, net) : new JournalLine(b.accountId, -net, 0));
+      } else {
+        // Produits ont un solde créditeur → on les solde par un débit
+        lines.push(net > 0 ? new JournalLine(b.accountId, net, 0) : new JournalLine(b.accountId, 0, -net));
+      }
     }
     // Contrepartie 120 : côté opposé au type
     let cpt120Line: JournalLine;

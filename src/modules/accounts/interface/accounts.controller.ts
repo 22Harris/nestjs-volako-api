@@ -3,6 +3,7 @@ import { UpdateAccountUseCase } from './../application/use-cases/update_account.
 import { SearchAccountUseCase } from './../application/use-cases/search_account.usecase';
 import { DeleteAccountUseCase } from './../application/use-cases/delete_account.usecase';
 import { Body, Controller, Delete, Get, HttpCode, Param, ParseIntPipe, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiResponse, ApiCookieAuth } from '@nestjs/swagger';
 import { CreateAccountUseCase } from "../application/use-cases/create_account.usecase";
 import { CreateAccountDto } from "./dtos/create-account.dto";
 import { Account } from "../domain/entities/account.entity";
@@ -14,6 +15,8 @@ import { Roles } from 'src/common/decorators/roles.decorator';
 import { Role } from 'src/common/enums/role.enum';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 
+@ApiTags('accounts')
+@ApiCookieAuth('access_token')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('account')
 export class AccountController {
@@ -28,7 +31,9 @@ export class AccountController {
   ) {}
 
   @Post()
-  @Roles(Role.ADMIN, Role.CHEF_COMPTABLE, Role.COMPTABLE)
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Créer un compte du plan comptable' })
+  @ApiResponse({ status: 201, description: 'Compte créé' })
   create(@Body() createAccountDto: CreateAccountDto, @CurrentUser() userId: number): Promise<Account> {
     return this.createAccountUseCase.execute(createAccountDto, userId);
   }
@@ -44,7 +49,7 @@ export class AccountController {
   }
 
   @Patch(':id')
-  @Roles(Role.ADMIN, Role.CHEF_COMPTABLE, Role.COMPTABLE)
+  @Roles(Role.ADMIN)
   updateAccount(@Param('id', ParseIntPipe) id: number, @Body() account: CreateAccountDto, @CurrentUser() userId: number): Promise<Account> {
     return this.updateAccountUseCase.execute(id, account, userId);
   }
@@ -62,6 +67,9 @@ export class AccountController {
   }
 
   @Post('init-pcg')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Initialiser le Plan Comptable Général complet (~290 comptes)' })
+  @ApiResponse({ status: 201, description: 'PCG initialisé' })
   initPcg(@CurrentUser() userId: number): Promise<{ created: number; skipped: number }> {
     return this.initPcgUseCase.execute(userId);
   }

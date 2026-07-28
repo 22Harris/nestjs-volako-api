@@ -2,15 +2,17 @@ import { Inject, Injectable, NotFoundException, BadRequestException } from '@nes
 import { USERS_REPOSITORY } from '../ports/users.repository.token';
 import type { UsersRepository, UserProfile } from '../ports/users.repository.interface';
 import { Role } from 'src/common/enums/role.enum';
+import { AuditLogService } from 'src/common/audit-log/audit-log.service';
 
 @Injectable()
 export class ToggleActiveUseCase {
   constructor(
     @Inject(USERS_REPOSITORY)
     private readonly repo: UsersRepository,
+    private readonly auditLog: AuditLogService,
   ) {}
 
-  async execute(id: number): Promise<UserProfile> {
+  async execute(id: number, actorId?: number): Promise<UserProfile> {
     const user = await this.repo.findById(id);
     if (!user) throw new NotFoundException('Utilisateur introuvable');
 
@@ -22,6 +24,16 @@ export class ToggleActiveUseCase {
       }
     }
 
-    return this.repo.setActive(id, !user.isActive);
+    const updated = await this.repo.setActive(id, !user.isActive);
+
+    await this.auditLog.log({
+      userId: actorId,
+      action: updated.isActive ? 'USER_ACTIVATED' : 'USER_DEACTIVATED',
+      entity: 'User',
+      entityId: id,
+      details: `Utilisateur ${user.email} ${updated.isActive ? 'activé' : 'désactivé'}`,
+    });
+
+    return updated;
   }
 }

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from 'src/prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
+import { AuditLogModule } from 'src/common/audit-log/audit-log.module';
 import { JournalEntryModule } from '../journal-entries/journal-entries.module';
 import { AccountModule } from '../accounts/accounts.module';
 import { PeriodeLocksModule } from '../periode-locks/periode-locks.module';
@@ -13,7 +14,7 @@ import { CloseFiscalYearUseCase } from './application/use-cases/close-fiscal-yea
 import { FiscalYearsController } from './interface/fiscal-years.controller';
 
 @Module({
-  imports: [PrismaModule, AuthModule, JournalEntryModule, AccountModule, PeriodeLocksModule],
+  imports: [PrismaModule, AuthModule, JournalEntryModule, AccountModule, PeriodeLocksModule, AuditLogModule],
   controllers: [FiscalYearsController],
   providers: [
     CreateFiscalYearUseCase,

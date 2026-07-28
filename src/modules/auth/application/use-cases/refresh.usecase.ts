@@ -25,7 +25,7 @@ export class RefreshUseCase {
     const user = await this.repo.findById(tokenData.userId);
     if (!user) throw new UnauthorizedException('Utilisateur introuvable');
 
-    const access_token = this.jwtService.sign({ sub: user.id, email: user.email });
+    const access_token = this.jwtService.sign({ sub: user.id, email: user.email, role: user.role, isActive: user.isActive });
     await this.auditLog.log({ userId: user.id, action: 'TOKEN_REFRESH' });
 
     return { access_token };

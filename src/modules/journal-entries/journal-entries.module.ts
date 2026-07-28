@@ -13,11 +13,15 @@ import { DelettrerLignesUseCase } from './application/use-cases/delettrer-lignes
 import { ValiderJournalEntryUseCase } from './application/use-cases/valider-journal-entry.usecase';
 import { RejeterJournalEntryUseCase } from './application/use-cases/rejeter-journal-entry.usecase';
 import { VerrouillerJournalEntryUseCase } from './application/use-cases/verrouiller-journal-entry.usecase';
+import { AutoLettrerLignesUseCase } from './application/use-cases/auto-lettrer-lignes.usecase';
+import { GetLignesCompteUseCase } from './application/use-cases/get-lignes-compte.usecase';
+import { ImportCsvEcrituresUseCase } from './application/use-cases/import-csv-ecritures.usecase';
 import { AuthModule } from '../auth/auth.module';
 import { PeriodeLocksModule } from '../periode-locks/periode-locks.module';
+import { AuditLogModule } from 'src/common/audit-log/audit-log.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, PeriodeLocksModule],
+  imports: [PrismaModule, AuthModule, PeriodeLocksModule, AuditLogModule],
   controllers: [JournalEntryController],
   providers: [
     CreateJournalEntryUseCase,
@@ -30,6 +34,9 @@ import { PeriodeLocksModule } from '../periode-locks/periode-locks.module';
     ValiderJournalEntryUseCase,
     RejeterJournalEntryUseCase,
     VerrouillerJournalEntryUseCase,
+    AutoLettrerLignesUseCase,
+    GetLignesCompteUseCase,
+    ImportCsvEcrituresUseCase,
     {
       provide: JOURNAL_ENTRIES,
       useClass: DbJournalEntryRepository,

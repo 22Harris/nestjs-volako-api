@@ -3,6 +3,7 @@ import { PrismaService } from '../../../../prisma/prisma.service';
 import {
   RapprochementRepository,
   ImportReleveData,
+  JournalLineCandidate,
 } from '../../application/ports/rapprochement.repository.interface';
 import { ReleveImport } from '../../domain/entities/releve-import.entity';
 import { LigneReleve } from '../../domain/entities/ligne-releve.entity';
@@ -84,6 +85,60 @@ export class DbRapprochementRepository implements RapprochementRepository {
   async findLigneReleve(ligneId: number) {
     const r = await this.prisma.ligneReleve.findUnique({ where: { id: ligneId } });
     return r ? this.toLigneEntity(r) : null;
+  }
+
+  async findLigneReleveForUser(ligneId: number, userId: number) {
+    const r = await this.prisma.ligneReleve.findFirst({
+      where: { id: ligneId, releve: { userId } },
+    });
+    return r ? this.toLigneEntity(r) : null;
+  }
+
+  async findPendingLignesForReleve(releveId: number, userId: number) {
+    const releve = await this.prisma.releveImport.findFirst({ where: { id: releveId, userId } });
+    if (!releve) return [];
+    const rows = await this.prisma.ligneReleve.findMany({
+      where: { releveId, rapprochee: false },
+      orderBy: { date: 'asc' },
+    });
+    return rows.map(r => this.toLigneEntity(r));
+  }
+
+  async findJournalLinesForMatching(
+    userId: number,
+    montantAbs: number,
+    date: Date,
+    toleranceJours: number,
+    tolerancePct: number,
+  ): Promise<JournalLineCandidate[]> {
+    const dateMin = new Date(date.getTime() - toleranceJours * 86_400_000);
+    const dateMax = new Date(date.getTime() + toleranceJours * 86_400_000);
+    const amtMin  = Math.max(0, Math.floor(montantAbs * (1 - tolerancePct)));
+    const amtMax  = Math.ceil(montantAbs * (1 + tolerancePct));
+
+    const rows = await this.prisma.journalLine.findMany({
+      where: {
+        entry: { userId, date: { gte: dateMin, lte: dateMax } },
+        OR: [
+          { debit:  { gte: amtMin, lte: amtMax } },
+          { credit: { gte: amtMin, lte: amtMax } },
+        ],
+        lignesReleve: { none: {} },
+      },
+      include: {
+        account: { select: { id: true, code: true, name: true } },
+        entry:   { select: { id: true, date: true, label: true, pieceNumber: true } },
+      },
+      take: 30,
+    });
+
+    return rows.map(r => ({
+      id:      r.id,
+      debit:   r.debit,
+      credit:  r.credit,
+      account: r.account,
+      entry:   { id: r.entry.id, date: r.entry.date, label: r.entry.label, pieceNumber: r.entry.pieceNumber },
+    }));
   }
 
   // ── Mappers ────────────────────────────────────────────────────────────────
